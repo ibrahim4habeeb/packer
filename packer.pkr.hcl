@@ -27,11 +27,7 @@ source "azure-arm" "base" {
   # Destination image
 
 
-  azure_tags = {
-    owner      = var.owner
-    department = var.department
-    build-time = local.timestamp
-  }
+
   use_azure_cli_auth = true
 }
 
