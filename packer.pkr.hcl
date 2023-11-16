@@ -10,7 +10,7 @@ packer {
 
 locals {
   timestamp  = regex_replace(timestamp(), "[- TZ:]", "")
-  image_name = "${var.prefix}-ubuntu20-${local.timestamp}"
+  //image_name = "${var.prefix}-ubuntu20-${local.timestamp}"
 }
 
 source "azure-arm" "base" {
