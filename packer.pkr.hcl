@@ -48,4 +48,3 @@ build {
     inline = ["echo 'Wait for cloud-init...' && /usr/bin/cloud-init status --wait"]
 }
 }
-}
