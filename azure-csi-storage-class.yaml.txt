@@ -1,0 +1,16 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: azure-csi
+provisioner: disk.csi.azure.com
+parameters:
+  skuName: Standard_LRS
+  kind: Managed
+  location: eastus
+  csi.storage.k8s.io/fstype: ext4
+  csi.storage.k8s.io/node-publish-secret-name: azure-csi-node
+  csi.storage.k8s.io/node-publish-secret-namespace: kube-system
+  csi.storage.k8s.io/controller-expand-secret-name: azure-csi-controller
+  csi.storage.k8s.io/controller-expand-secret-namespace: kube-system
+  # Add tags for the Azure resources
+  csi.storage.k8s.io/tags: "appversion=0.0.2,costcenter=4444"
