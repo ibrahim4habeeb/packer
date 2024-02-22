@@ -1,0 +1,17 @@
+Install the Plugin:
+
+Go to your Jenkins instance.
+Navigate to "Manage Jenkins" > "Manage Plugins" > "Available" tab.
+Search for "Dashboard View" plugin and install it.
+
+groups:
+- name: myapp.rules
+  rules:
+  - alert: ConfigResetDetected
+    expr: changes(myapp_config_yaml{job="kube-state-metrics"}) > 0
+    for: 1m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Config.yaml reset detected for myapp container"
+      description: "The config.yaml for myapp container has been reset."
