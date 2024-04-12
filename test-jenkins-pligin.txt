@@ -15,3 +15,42 @@ groups:
     annotations:
       summary: "Config.yaml reset detected for myapp container"
       description: "The config.yaml for myapp container has been reset."
+=======12-04-2024======
+To improve login speed in Jenkins using the Jenkins Configuration as Code (JCasC) approach, you can configure authentication plugins efficiently. Here's an example YAML configuration file demonstrating how to configure Jenkins to use the LDAP authentication plugin for faster user login:
+jenkins:
+  securityRealm:
+    ldap:
+      configurations:
+        - server: ldap.example.com
+          rootDN: "dc=example,dc=com"
+          userSearchBase: "ou=users"
+          userSearch: "(uid={0})"
+          groupSearchBase: "ou=groups"
+          managerDN: "cn=admin,dc=example,dc=com"
+          managerPasswordSecret: ldap-admin-password
+          cache:
+            size: 10000
+            ttl: 3600
+            eviction: 1000
+  crumbIssuer:
+    standard: false
+==================================
+Explanation of the configuration:
+
+securityRealm: Configures the security realm for Jenkins, which defines how users are authenticated.
+ldap: Specifies that Jenkins should use LDAP authentication.
+configurations: Allows you to define multiple LDAP server configurations if needed.
+server: Specifies the LDAP server address.
+rootDN: Specifies the root distinguished name for LDAP.
+userSearchBase: Specifies the base DN for user searches.
+userSearch: Specifies the LDAP search filter for users.
+groupSearchBase: Specifies the base DN for group searches.
+managerDN: Specifies the distinguished name of the LDAP manager.
+managerPasswordSecret: Specifies the secret containing the password for the LDAP manager.
+cache: Configures caching options for LDAP authentication.
+size: Sets the maximum size of the cache. Adjust according to the number of users and expected workload.
+ttl: Sets the time-to-live (expiration time) for cached entries in seconds. Adjust based on how frequently user permissions change.
+eviction: Sets the maximum number of entries to evict when the cache reaches its maximum size. Helps manage memory usage and performance.
+In this example, LDAP authentication is used, but you can replace it with the appropriate authentication plugin if you're using a different authentication provider. Adjust the configuration parameters (size, ttl, eviction) based on your specific requirements and environment characteristics to achieve faster login times while balancing performance and resource utilization.
+
+After configuring the YAML file, apply it using Helm or directly by placing it in the appropriate location in your Jenkins setup, depending on your deployment method.
