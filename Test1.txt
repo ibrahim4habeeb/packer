@@ -1,0 +1,193 @@
+To configure outbound internet access for a VM on an Azure private network and ensure that it has access to GitHub servers using Azure Firewall and Network Security Groups (NSGs), follow these steps:
+
+### Step 1: Create and Configure Azure Firewall
+
+1. **Create Azure Firewall**:
+    - Navigate to the Azure Portal.
+    - Go to "Create a resource" and search for "Firewall".
+    - Click "Create" and fill in the required details (e.g., resource group, name, region).
+    - Create a new virtual network or select an existing one.
+    - Click "Review + create" and then "Create".
+
+2. **Configure Firewall Rules**:
+    - Go to the Azure Firewall you created.
+    - Navigate to "Rules" and add a new application rule collection.
+
+    Example Application Rule to allow traffic to GitHub:
+    - **Name**: AllowGitHub
+    - **Priority**: 100
+    - **Action**: Allow
+    - **Rule**:
+        - **Name**: AllowGitHub
+        - **Source Type**: IP Address
+        - **Source**: (IP address of your VM or subnet range)
+        - **Protocol**: HTTP, HTTPS
+        - **Target FQDNs**: `github.com`, `api.github.com`
+
+3. **Associate Firewall with Subnet**:
+    - Ensure the firewall is in a subnet within your virtual network.
+    - This subnet should be dedicated to Azure Firewall.
+
+### Step 2: Route Traffic Through Azure Firewall
+
+1. **Create a Route Table**:
+    - Navigate to "Create a resource" and search for "Route Table".
+    - Click "Create" and fill in the required details (e.g., name, region).
+    - Click "Review + create" and then "Create".
+
+2. **Add a Route to the Route Table**:
+    - Go to the route table you created.
+    - Click on "Routes" and then "Add".
+    - Fill in the route details:
+        - **Route name**: ToAzureFirewall
+        - **Address prefix**: 0.0.0.0/0
+        - **Next hop type**: Virtual appliance
+        - **Next hop address**: (IP address of your Azure Firewall)
+
+3. **Associate Route Table with Subnet**:
+    - Go to the route table.
+    - Click on "Subnets" and then "Associate".
+    - Select the virtual network and subnet where your VM resides.
+
+### Step 3: Configure Network Security Groups (NSGs)
+
+1. **Create an NSG**:
+    - Navigate to the Azure Portal.
+    - Go to "Create a resource" and search for "Network Security Group".
+    - Click "Create" and fill in the required details.
+    - Click "Review + create" and then "Create".
+
+2. **Configure NSG Rules**:
+    - Go to the NSG you created.
+    - Add outbound security rules to allow traffic to GitHub.
+
+    Example NSG rule:
+    - **Name**: AllowGitHubOutbound
+    - **Priority**: 100
+    - **Direction**: Outbound
+    - **Source**: Any
+    - **Source port ranges**: *
+    - **Destination**: Service Tag
+    - **Service Tag**: Internet
+    - **Destination port ranges**: 443 (HTTPS)
+    - **Protocol**: TCP
+    - **Action**: Allow
+
+3. **Associate NSG with Subnet or Network Interface**:
+    - Go to the NSG.
+    - Click on "Subnets" and associate it with the subnet where your VM resides.
+    - Alternatively, you can associate it with the network interface of the VM directly.
+
+### Verification and Testing
+
+1. **Verify Internet Connectivity**:
+    - SSH into your VM.
+    - Use `curl` or `ping` to test connectivity to GitHub:
+    ```bash
+    curl -I https://github.com
+    ```
+
+2. **Check Firewall Logs**:
+    - If using Azure Firewall, check the firewall logs to ensure traffic is being routed correctly.
+
+3. **Monitor Network Traffic**:
+    - Use Azure Network Watcher to monitor and diagnose network issues if connectivity fails.
+
+By following these steps, your Azure VM should have the necessary outbound internet access via Azure Firewall and NSGs configured to allow communication with GitHub server
+№###########₹₹₹₹
+To configure outbound internet access for a VM on an Azure private network and ensure that it has access to GitHub servers using Azure Firewall and Network Security Groups (NSGs), follow these steps:
+
+### Step 1: Create and Configure Azure Firewall
+
+1. **Create Azure Firewall**:
+    - Navigate to the Azure Portal.
+    - Go to "Create a resource" and search for "Firewall".
+    - Click "Create" and fill in the required details (e.g., resource group, name, region).
+    - Create a new virtual network or select an existing one.
+    - Click "Review + create" and then "Create".
+
+2. **Configure Firewall Rules**:
+    - Go to the Azure Firewall you created.
+    - Navigate to "Rules" and add a new application rule collection.
+
+    Example Application Rule to allow traffic to GitHub:
+    - **Name**: AllowGitHub
+    - **Priority**: 100
+    - **Action**: Allow
+    - **Rule**:
+        - **Name**: AllowGitHub
+        - **Source Type**: IP Address
+        - **Source**: (IP address of your VM or subnet range)
+        - **Protocol**: HTTP, HTTPS
+        - **Target FQDNs**: `github.com`, `api.github.com`
+
+3. **Associate Firewall with Subnet**:
+    - Ensure the firewall is in a subnet within your virtual network.
+    - This subnet should be dedicated to Azure Firewall.
+
+### Step 2: Route Traffic Through Azure Firewall
+
+1. **Create a Route Table**:
+    - Navigate to "Create a resource" and search for "Route Table".
+    - Click "Create" and fill in the required details (e.g., name, region).
+    - Click "Review + create" and then "Create".
+
+2. **Add a Route to the Route Table**:
+    - Go to the route table you created.
+    - Click on "Routes" and then "Add".
+    - Fill in the route details:
+        - **Route name**: ToAzureFirewall
+        - **Address prefix**: 0.0.0.0/0
+        - **Next hop type**: Virtual appliance
+        - **Next hop address**: (IP address of your Azure Firewall)
+
+3. **Associate Route Table with Subnet**:
+    - Go to the route table.
+    - Click on "Subnets" and then "Associate".
+    - Select the virtual network and subnet where your VM resides.
+
+### Step 3: Configure Network Security Groups (NSGs)
+
+1. **Create an NSG**:
+    - Navigate to the Azure Portal.
+    - Go to "Create a resource" and search for "Network Security Group".
+    - Click "Create" and fill in the required details.
+    - Click "Review + create" and then "Create".
+
+2. **Configure NSG Rules**:
+    - Go to the NSG you created.
+    - Add outbound security rules to allow traffic to GitHub.
+
+    Example NSG rule:
+    - **Name**: AllowGitHubOutbound
+    - **Priority**: 100
+    - **Direction**: Outbound
+    - **Source**: Any
+    - **Source port ranges**: *
+    - **Destination**: Service Tag
+    - **Service Tag**: Internet
+    - **Destination port ranges**: 443 (HTTPS)
+    - **Protocol**: TCP
+    - **Action**: Allow
+
+3. **Associate NSG with Subnet or Network Interface**:
+    - Go to the NSG.
+    - Click on "Subnets" and associate it with the subnet where your VM resides.
+    - Alternatively, you can associate it with the network interface of the VM directly.
+
+### Verification and Testing
+
+1. **Verify Internet Connectivity**:
+    - SSH into your VM.
+    - Use `curl` or `ping` to test connectivity to GitHub:
+    ```bash
+    curl -I https://github.com
+    ```
+
+2. **Check Firewall Logs**:
+    - If using Azure Firewall, check the firewall logs to ensure traffic is being routed correctly.
+
+3. **Monitor Network Traffic**:
+    - Use Azure Network Watcher to monitor and diagnose network issues if connectivity fails.
+
+By following these steps, your Azure VM should have the necessary outbound internet access via Azure Firewall and NSGs configured to allow communication with GitHub servers.
