@@ -1,0 +1,116 @@
+To configure a GitHub self-hosted runner on an Azure cloud private network virtual machine (VM), follow these steps. This guide includes setting up the VM, configuring the network for internet access, installing the runner, and ensuring communication with GitHub.
+
+### Prerequisites
+
+1. **Azure Subscription**: Ensure you have an active Azure subscription.
+2. **GitHub Repository Access**: Admin access to the GitHub repository where you want to set up the self-hosted runner.
+3. **Outbound Internet Access**: Ensure your VM can access the internet.
+
+### Step-by-Step Guide
+
+#### Step 1: Create an Azure Virtual Machine
+
+1. **Navigate to the Azure Portal**:
+   - Go to [Azure Portal](https://portal.azure.com/).
+   - Click on "Create a resource" and select "Virtual Machine".
+
+2. **Configure VM Settings**:
+   - Choose a virtual machine image (e.g., Ubuntu Server 20.04 LTS).
+   - Select the size based on your requirements.
+   - Configure the VM in your desired region.
+   - Create or select an existing virtual network (VNet) and subnet. Ensure this subnet is in your private network.
+
+3. **Networking Setup**:
+   - Ensure the VM's subnet has a NAT Gateway or Azure Firewall for outbound internet access.
+   - Configure Network Security Groups (NSGs) to allow necessary outbound traffic, especially to GitHub servers.
+
+#### Step 2: Set Up Network for Outbound Internet Access
+
+1. **Create a NAT Gateway**:
+   - In the Azure Portal, search for "NAT Gateway" and create a new one.
+   - Associate it with the subnet where your VM resides.
+   - Configure the route table to direct 0.0.0.0/0 traffic to the NAT Gateway.
+
+2. **Configure NSG Rules**:
+   - Ensure your NSG allows outbound traffic on ports 80 (HTTP) and 443 (HTTPS).
+   - You might need to allow specific IP ranges for GitHub. Refer to [GitHub's IP ranges](https://api.github.com/meta).
+
+#### Step 3: Install Required Software on the VM
+
+1. **SSH into the VM**:
+   - Use your preferred SSH client to connect to the VM.
+
+2. **Update and Install Dependencies**:
+   ```bash
+   sudo apt-get update
+   sudo apt-get install -y git curl jq
+   ```
+
+#### Step 4: Download and Configure the GitHub Runner
+
+1. **Obtain Runner Token**:
+   - Go to your GitHub repository.
+   - Navigate to `Settings > Actions > Runners > Add Runner`.
+   - Follow the instructions to generate a runner token.
+
+2. **Download and Configure the Runner**:
+   ```bash
+   # Download the latest runner package
+   curl -o actions-runner-linux-x64-2.283.1.tar.gz -L https://github.com/actions/runner/releases/download/v2.283.1/actions-runner-linux-x64-2.283.1.tar.gz
+
+   # Extract the installer
+   tar xzf ./actions-runner-linux-x64-2.283.1.tar.gz
+
+   # Navigate to the runner directory
+   cd actions-runner
+
+   # Configure the runner
+   ./config.sh --url https://github.com/your-org/your-repo --token YOUR_GENERATED_TOKEN
+   ```
+
+#### Step 5: Set Up the Runner as a Service
+
+1. **Install the Runner Service**:
+   ```bash
+   sudo ./svc.sh install
+   ```
+
+2. **Start the Runner Service**:
+   ```bash
+   sudo ./svc.sh start
+   ```
+
+#### Step 6: Validate the Setup
+
+1. **Verify Runner Registration**:
+   - Go back to your GitHub repository’s settings.
+   - Ensure the runner appears under the "Runners" section.
+
+2. **Test the Runner**:
+   - Create a workflow in your GitHub repository to ensure the runner picks up jobs.
+   - Example `.github/workflows/test.yml`:
+   ```yaml
+   name: Test Self-Hosted Runner
+
+   on: [push]
+
+   jobs:
+     test:
+       runs-on: self-hosted
+       steps:
+         - name: Checkout code
+           uses: actions/checkout@v2
+         - name: Run a test command
+           run: echo "Hello, world!"
+   ```
+
+#### Step 7: Security Considerations
+
+1. **Restrict Network Access**:
+   - Apply the principle of least privilege to your NSG rules.
+   - Use a dedicated subnet for your runner VM.
+
+2. **Update Regularly**:
+   - Regularly update your runner and dependencies to the latest versions to ensure security and performance.
+
+By following these steps, you will have successfully configured a GitHub self-hosted runner on an Azure cloud private network virtual machine. This setup ensures secure and controlled access to GitHub, allowing you to run workflows efficiently.
