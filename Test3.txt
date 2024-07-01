@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# Variables (replace these with your own)
+GITHUB_OWNER="your-github-owner"
+GITHUB_REPO="your-repo-name"
+GITHUB_TOKEN="your-personal-access-token"
+
+# Fetch the latest runner package URL
+RUNNER_VERSION=$(curl -s https://api.github.com/repos/actions/runner/releases/latest | grep 'tag_name' | cut -d\" -f4)
+RUNNER_URL="https://github.com/actions/runner/releases/download/${RUNNER_VERSION}/actions-runner-linux-x64-${RUNNER_VERSION#v}.tar.gz"
+
+# Download and extract the runner package
+curl -o actions-runner-linux-x64.tar.gz -L $RUNNER_URL
+tar xzf ./actions-runner-linux-x64.tar.gz
+
+# Generate a new registration token
+REG_TOKEN=$(curl -s -X POST -H "Authorization: token $GITHUB_TOKEN" \
+    https://api.github.com/repos/$GITHUB_OWNER/$GITHUB_REPO/actions/runners/registration-token | \
+    jq -r .token)
+
+# Configure the runner
+./config.sh --url https://github.com/$GITHUB_OWNER/$GITHUB_REPO --token $REG_TOKEN
+
+# Run the runner
+./run.sh
+≈===============================
+# Create a new VM (modify with your own parameters)
+az vm create \
+  --resource-group YourResourceGroup \
+  --name YourVMName \
+  --image UbuntuLTS \
+  --admin-username azureuser \
+  --generate-ssh-keys
+
+# Get the public IP of the new VM
+VM_IP=$(az vm show -d -g YourResourceGroup -n YourVMName --query publicIps -o tsv)
+
+# Copy the setup script to the VM and execute it
+scp -i ~/.ssh/id_rsa setup_runner.sh azureuser@$VM_IP:~
+ssh -i ~/.ssh/id_rsa azureuser@$VM_IP 'bash ~/setup_runner.sh'
