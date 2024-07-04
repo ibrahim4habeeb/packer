@@ -1,0 +1,142 @@
+Using Azure Files instead of Azure Blob Storage for Grafana storage involves a few additional steps to set up Azure File Share and configure Grafana to use it. Here's how you can set up the project from scratch:
+
+### **1. Set Up AKS Cluster**
+
+1. **Create a Resource Group:**
+   ```sh
+   az group create --name myResourceGroup --location eastus
+   ```
+
+2. **Create an AKS Cluster:**
+   ```sh
+   az aks create --resource-group myResourceGroup --name myAKSCluster --node-count 3 --enable-addons monitoring --generate-ssh-keys
+   ```
+
+3. **Get AKS Credentials:**
+   ```sh
+   az aks get-credentials --resource-group myResourceGroup --name myAKSCluster
+   ```
+
+### **2. Deploy Prometheus and Grafana**
+
+1. **Add Helm Repositories:**
+   ```sh
+   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+   helm repo add grafana https://grafana.github.io/helm-charts
+   helm repo update
+   ```
+
+2. **Install Prometheus:**
+   ```sh
+   helm install prometheus prometheus-community/kube-prometheus-stack --namespace monitoring --create-namespace
+   ```
+
+3. **Install Grafana:**
+   ```sh
+   helm install grafana grafana/grafana --namespace monitoring --set persistence.enabled=true --set persistence.storageClassName=default --set adminPassword='admin'
+   ```
+
+### **3. Configure Azure Files for Grafana**
+
+1. **Create an Azure Storage Account:**
+   ```sh
+   az storage account create --name mygrafanastorage --resource-group myResourceGroup --location eastus --sku Standard_LRS
+   ```
+
+2. **Create an Azure File Share:**
+   ```sh
+   az storage share create --account-name mygrafanastorage --name grafana
+   ```
+
+3. **Get Storage Account Key:**
+   ```sh
+   az storage account keys list --resource-group myResourceGroup --account-name mygrafanastorage
+   ```
+
+### **4. Create Kubernetes Secret for Azure File Share**
+
+1. **Create a Kubernetes Secret with the Storage Account Name and Key:**
+   ```sh
+   kubectl create secret generic azure-secret --from-literal=azurestorageaccountname=mygrafanastorage --from-literal=azurestorageaccountkey=YOUR_ACCOUNT_KEY -n monitoring
+   ```
+
+### **5. Configure Persistent Volume and Persistent Volume Claim**
+
+1. **Create a Persistent Volume (PV) and Persistent Volume Claim (PVC) YAML file (azure-file-pv-pvc.yaml):**
+   ```yaml
+   apiVersion: v1
+   kind: PersistentVolume
+   metadata:
+     name: grafana-pv
+     namespace: monitoring
+   spec:
+     capacity:
+       storage: 10Gi
+     accessModes:
+       - ReadWriteMany
+     azureFile:
+       secretName: azure-secret
+       shareName: grafana
+       readOnly: false
+   ---
+   apiVersion: v1
+   kind: PersistentVolumeClaim
+   metadata:
+     name: grafana-pvc
+     namespace: monitoring
+   spec:
+     accessModes:
+       - ReadWriteMany
+     resources:
+       requests:
+         storage: 10Gi
+   ```
+
+2. **Apply the PV and PVC Configuration:**
+   ```sh
+   kubectl apply -f azure-file-pv-pvc.yaml
+   ```
+
+### **6. Update Grafana Deployment to Use Azure File Share**
+
+1. **Update the Grafana Helm values file (`values.yaml`):**
+   ```yaml
+   persistence:
+     enabled: true
+     existingClaim: grafana-pvc
+   ```
+
+2. **Upgrade Grafana with the New Values:**
+   ```sh
+   helm upgrade grafana grafana/grafana --namespace monitoring -f values.yaml
+   ```
+
+### **7. Access Grafana and Prometheus**
+
+1. **Get the Grafana Admin Password:**
+   ```sh
+   kubectl get secret --namespace monitoring grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
+   ```
+
+2. **Port-forward Grafana to Access Locally:**
+   ```sh
+   kubectl port-forward --namespace monitoring svc/grafana 3000:80
+   ```
+
+3. **Access Grafana:**
+   - Open a browser and go to `http://localhost:3000`.
+   - Login with username `admin` and the password retrieved earlier.
+
+4. **Add Prometheus Data Source in Grafana:**
+   - Go to Grafana Configuration -> Data Sources -> Add data source.
+   - Select Prometheus and enter the following URL: `http://prometheus-server.monitoring.svc.cluster.local`.
+
+### **8. Set Up Monitoring Dashboards**
+
+1. **Import Dashboards:**
+   - In Grafana, go to Create -> Import.
+   - Use the Prometheus and Kubernetes dashboards available from Grafana.com (e.g., Dashboard ID 6417 for Kubernetes).
+
+### **Summary**
+
+This setup involves creating an AKS cluster, deploying Prometheus and Grafana using Helm, configuring Azure File Share for Grafana persistence, and setting up monitoring dashboards. This guide ensures that Grafana uses Azure Files for storing its data, providing a scalable and persistent storage solution.
