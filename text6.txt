@@ -1,0 +1,118 @@
+To determine the data transfer speed for your standard HDD and Premium SSD on Azure, you need to consider a few factors:
+
+Disk Throughput: The maximum data transfer rate that the disk can handle.
+Network Bandwidth: The available network bandwidth for data transfer to another server.
+Latency: The delay before the transfer starts.
+Standard HDD and Premium SSD Performance
+Azure provides different performance metrics for standard HDDs and Premium SSDs. Here are typical values:
+
+Standard HDD:
+
+Max IOPS (Input/Output Operations Per Second): ~500
+Max Throughput: ~60 MB/s
+Premium SSD:
+
+Max IOPS: ~20,000 (depending on the disk size)
+Max Throughput: ~900 MB/s (depending on the disk size)
+Data Transfer Speed Calculation
+For practical purposes, let's assume the following values for an example calculation:
+
+Standard HDD Throughput: 60 MB/s
+Premium SSD Throughput: 900 MB/s
+Network Bandwidth: 1 Gbps (125 MB/s) for both VMs
+Example Calculation
+1. Download Speed Calculation
+Standard HDD: The download speed will be limited by the HDD throughput.
+
+Download Speed (Standard HDD)
+=
+60
+ 
+MB/s
+Download Speed (Standard HDD)=60MB/s
+Premium SSD: The download speed will be limited by the network bandwidth.
+
+Download Speed (Premium SSD)
+=
+125
+ 
+MB/s
+Download Speed (Premium SSD)=125MB/s
+2. Upload Speed Calculation
+Standard HDD: The upload speed will be limited by the HDD throughput.
+
+Upload Speed (Standard HDD)
+=
+60
+ 
+MB/s
+Upload Speed (Standard HDD)=60MB/s
+Premium SSD: The upload speed will be limited by the network bandwidth.
+
+Upload Speed (Premium SSD)
+=
+125
+ 
+MB/s
+Upload Speed (Premium SSD)=125MB/s
+Performance Percentage Comparison
+To compare the performance in percentage terms:
+
+Percentage Speed Increase (Download/Upload)
+=
+(
+Premium SSD Speed
+Standard HDD Speed
+)
+×
+100
+%
+Percentage Speed Increase (Download/Upload)=( 
+Standard HDD Speed
+Premium SSD Speed
+​
+ )×100%
+Download Speed Increase:
+(
+125
+ 
+MB/s
+60
+ 
+MB/s
+)
+×
+100
+%
+≈
+208.33
+%
+( 
+60MB/s
+125MB/s
+​
+ )×100%≈208.33%
+Upload Speed Increase:
+(
+125
+ 
+MB/s
+60
+ 
+MB/s
+)
+×
+100
+%
+≈
+208.33
+%
+( 
+60MB/s
+125MB/s
+​
+ )×100%≈208.33%
+
+Ref:
+https://learn.microsoft.com/en-us/azure/well-architected/performance-efficiency/optimize-code-infrastructure
+https://learn.microsoft.com/en-us/azure/virtual-machines/disks-types
