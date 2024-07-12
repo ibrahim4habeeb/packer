@@ -37,18 +37,75 @@ It checks the VM's status:
 If the VM is running (PowerState/running), it stops the VM using the az vm stop command.
 If the VM is stopped (PowerState/deallocated), it starts the VM using the az vm start command.
 If the VM is in any other state, it prints the unknown state.
-Ensure you have the Azure CLI installed and configured with the necessary permissions to manage the VM.
+Ensure you have the Azure CLI installed and configured with the necessary permissions to manage th
+==============================================================================================================
+I want to run this script through github action How could I do the same
+ChatGPT
+To run this script through GitHub Actions, you can create a workflow file in your GitHub repository that uses the Azure CLI to manage your VM. Below is an example of how to set up a GitHub Actions workflow to run the script:
 
+Save the script to a file in your repository, e.g., manage-vm.sh.
 
+Create a new workflow file in your repository, e.g., .github/workflows/manage-vm.yml.
 
+Add the following content to the manage-vm.yml file:
 
+yaml
+Copy code
+name: Manage Azure VM
 
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
 
-Is this conversation helpful so far?
+jobs:
+  manage-vm:
+    runs-on: ubuntu-latest
 
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
 
+    - name: Set up Azure CLI
+      uses: azure/CLI@v1
+      with:
+        version: '2.30.0'
 
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+    - name: Run manage VM script
+      run: |
+        chmod +x ./manage-vm.sh
+        ./manage-vm.sh
+Explanation:
+Workflow Trigger:
 
+The workflow triggers on a push to the main branch and can also be manually triggered using the workflow_dispatch event.
+Jobs:
 
-ChatGPT can make mistakes. Check
+manage-vm job runs on an ubuntu-latest runner.
+Steps:
+
+Checkout repository: Checks out the repository code to the GitHub Actions runner.
+Set up Azure CLI: Sets up the Azure CLI on the runner. You can specify the version of the Azure CLI you need.
+Login to Azure: Logs in to Azure using a service principal. The credentials for the service principal are stored in a GitHub secret named AZURE_CREDENTIALS.
+Run manage VM script: Makes the manage-vm.sh script executable and runs it.
+Storing Azure Credentials:
+Create a service principal in Azure and grant it the necessary permissions to manage your VM.
+
+bash
+Copy code
+az ad sp create-for-rbac --name "my-github-action" --role contributor --scopes /subscriptions/{subscription-id}/resourceGroups/{resource-group} --sdk-auth
+Replace {subscription-id} and {resource-group} with your Azure subscription ID and resource group name. The output will be a JSON object containing the credentials.
+
+Add the JSON output to your repository's secrets:
+
+Go to your repository on GitHub.
+Click on Settings > Secrets and variables > Actions.
+Click on New repository secret.
+Name the secret AZURE_CREDENTIALS and paste the JSON output into the Value field.
+Once you have set up the workflow and added the credentials, the GitHub Actions workflow will run the manage-vm.sh script, which will start or stop your Azure VM based on its current state.
