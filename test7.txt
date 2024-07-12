@@ -109,3 +109,109 @@ Click on Settings > Secrets and variables > Actions.
 Click on New repository secret.
 Name the secret AZURE_CREDENTIALS and paste the JSON output into the Value field.
 Once you have set up the workflow and added the credentials, the GitHub Actions workflow will run the manage-vm.sh script, which will start or stop your Azure VM based on its current state.
+#########################################################################################
+##########################################################################################
+##########################################################################################
+what is alternate to az login using az cli
+ChatGPT
+If you prefer not to use az login with the Azure CLI for authentication within GitHub Actions, you can use Azure service principal credentials directly with environment variables. This method involves exporting the service principal credentials as environment variables and using them in your script.
+
+Here's how you can do it:
+
+Create a Service Principal:
+First, create a service principal as described earlier:
+
+bash
+Copy code
+az ad sp create-for-rbac --name "my-github-action" --role contributor --scopes /subscriptions/{subscription-id}/resourceGroups/{resource-group} --sdk-auth
+Copy the JSON output containing the credentials.
+
+Store Credentials as GitHub Secrets:
+
+Go to your GitHub repository.
+Navigate to Settings > Secrets and variables > Actions.
+Create the following secrets:
+AZURE_CLIENT_ID - clientId from the JSON output.
+AZURE_CLIENT_SECRET - clientSecret from the JSON output.
+AZURE_SUBSCRIPTION_ID - subscriptionId from the JSON output.
+AZURE_TENANT_ID - tenantId from the JSON output.
+Modify the GitHub Actions Workflow:
+Update your GitHub Actions workflow to use these secrets as environment variables and authenticate with Azure.
+
+yaml
+Copy code
+name: Manage Azure VM
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  manage-vm:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Azure CLI
+      uses: azure/CLI@v1
+      with:
+        version: '2.30.0'
+
+    - name: Authenticate with Azure
+      env:
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+        AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      run: |
+        az login --service-principal --username $AZURE_CLIENT_ID --password $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
+    
+    - name: Run manage VM script
+      run: |
+        chmod +x ./manage-vm.sh
+        ./manage-vm.sh
+Explanation:
+Checkout repository: Checks out the repository code to the GitHub Actions runner.
+Set up Azure CLI: Installs the Azure CLI on the runner.
+Authenticate with Azure: Uses the service principal credentials stored in GitHub Secrets to authenticate with Azure using the az login command. The environment variables are set from the GitHub Secrets.
+Run manage VM script: Makes the manage-vm.sh script executable and runs it.
+Alternative: Direct Environment Variable Usage in Scripts
+Alternatively, you can directly set environment variables within your script and avoid the az login step if your script supports it. Here's an example script:
+
+bash
+Copy code
+#!/bin/bash
+
+# Variables
+RESOURCE_GROUP="your-resource-group"
+VM_NAME="your-vm-name"
+AZURE_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}
+AZURE_CLIENT_SECRET=${{ secrets.AZURE_CLIENT_SECRET }}
+AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}
+AZURE_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}
+
+# Authenticate using environment variables
+az login --service-principal --username $AZURE_CLIENT_ID --password $AZURE_CLIENT_SECRET --tenant $AZURE_TENANT_ID
+
+# Get the status of the VM
+VM_STATUS=$(az vm get-instance-view --resource-group $RESOURCE_GROUP --name $VM_NAME --query "instanceView.statuses[1].code" -o tsv)
+
+# Check if VM is running or stopped
+if [[ $VM_STATUS == "PowerState/running" ]]; then
+    echo "VM is running. Stopping the VM..."
+    az vm stop --resource-group $RESOURCE_GROUP --name $VM_NAME
+    echo "VM stopped."
+elif [[ $VM_STATUS == "PowerState/deallocated" ]]; then
+    echo "VM is stopped. Starting the VM..."
+    az vm start --resource-group $RESOURCE_GROUP --name $VM_NAME
+    echo "VM started."
+else
+    echo "VM is in an unknown state: $VM_STATUS"
+fi
+This method simplifies the workflow by embedding the authentication directly in the script. Ensure that your GitHub Actions workflow sets the necessary environment variables as shown above.
+
+
