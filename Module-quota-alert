@@ -1,0 +1,142 @@
+root dir
+provider "azurerm" {
+  features {}
+}
+
+resource "azurerm_resource_group" "example" {
+  name     = "example-resources"
+  location = "East US"
+}
+
+resource "azurerm_monitor_action_group" "example" {
+  name                = "example-ag"
+  resource_group_name = azurerm_resource_group.example.name
+  short_name          = "exampleAG"
+
+  email_receiver {
+    name          = "admin"
+    email_address = "admin@example.com"
+  }
+}
+
+module "azure_quotas" {
+  source = "./azure-quotas"
+
+  alert_name_prefix   = "quota-alert"
+  resource_group_name = azurerm_resource_group.example.name
+  location            = azurerm_resource_group.example.location
+  metric_namespace    = "Microsoft.Compute/virtualMachines"
+  metric_name         = "Standard_DDSv5_Family_vCPUs"
+  alert_thresholds    = {
+    warning  = 60
+    error    = 70
+    critical = 80
+  }
+  severity_levels = {
+    warning  = 2
+    error    = 1
+    critical = 0
+  }
+  vm_sizes          = ["Standard_D4s_v5", "Standard_D8s_v5"]
+  action_group_id   = azurerm_monitor_action_group.example.id
+  scopes            = ["/subscriptions/${var.subscription_id}/resourceGroups/${azurerm_resource_group.example.name}"]
+  tags              = {
+    environment = "production"
+    department  = "IT"
+  }
+}
+
+variable "subscription_id" {
+  description = "The subscription ID where the resource group and resources will be created"
+}
+######
+azure-quota/main.tf
+resource "azurerm_monitor_metric_alert" "quota_alert" {
+  for_each            = var.alert_thresholds
+  name                = "${var.alert_name_prefix}-${each.key}"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  description         = "Quota alert for ${var.metric_name} (${each.key})"
+  severity            = var.severity_levels[each.key]
+  enabled             = true
+  frequency           = "PT1H"
+  window_size         = "PT1H"
+
+  criteria {
+    metric_namespace = var.metric_namespace
+    metric_name      = var.metric_name
+    aggregation      = "Total"
+    operator         = "GreaterThanOrEqual"
+    threshold        = each.value
+
+    dimension {
+      name     = "VMSize"
+      operator = "Include"
+      values   = var.vm_sizes
+    }
+  }
+
+  action {
+    action_group_id = var.action_group_id
+  }
+
+  scopes = var.scopes
+
+  tags = var.tags
+}
+###
+var.tf
+variable "alert_name_prefix" {
+  description = "Prefix for the alert name"
+  type        = string
+}
+
+variable "resource_group_name" {
+  description = "The name of the resource group"
+  type        = string
+}
+
+variable "location" {
+  description = "The location of the resource group"
+  type        = string
+}
+
+variable "metric_namespace" {
+  description = "The namespace of the metric"
+  type        = string
+}
+
+variable "metric_name" {
+  description = "The name of the metric"
+  type        = string
+}
+
+variable "alert_thresholds" {
+  description = "A map of thresholds for different severity levels"
+  type        = map(number)
+}
+
+variable "severity_levels" {
+  description = "A map of severity levels corresponding to each threshold"
+  type        = map(number)
+}
+
+variable "vm_sizes" {
+  description = "A list of VM sizes to include in the dimension"
+  type        = list(string)
+}
+
+variable "action_group_id" {
+  description = "The ID of the action group to use for the alert"
+  type        = string
+}
+
+variable "scopes" {
+  description = "A list of scopes that the alert rule applies to"
+  type        = list(string)
+}
+
+variable "tags" {
+  description = "Tags to apply to the alert rule"
+  type        = map(string)
+}
