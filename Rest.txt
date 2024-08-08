@@ -1,0 +1,104 @@
+Creating Azure quota alerts using Azure REST API via Terraform involves integrating API calls within Terraform resources or using a null_resource to execute scripts or commands. However, as mentioned earlier, Azure doesn't have a direct REST API for quota-specific alerts, but you can use Azure Monitor metrics alerts as a workaround.To achieve this with Terraform, you typically:Define Azure Monitor metric alerts using Terraform.Use a null_resource to execute custom scripts or API calls if needed.Here’s how you can use Terraform to set up a metric alert that helps monitor quotas, and optionally, use the null_resource to make API calls if more advanced quota-specific configurations are required.1. Define Azure Monitor Metric AlertsThis Terraform configuration sets up Azure Monitor metric alerts which you can use to monitor resource usage (which can indirectly help with quota management).Example main.tf file:provider "azurerm" {
+  features {}
+}
+
+# Define Resource Group
+resource "azurerm_resource_group" "example" {
+  name     = "example-resources"
+  location = "East US"
+}
+
+# Define Action Group
+resource "azurerm_monitor_action_group" "example" {
+  name                = "example-actiongroup"
+  resource_group_name = azurerm_resource_group.example.name
+  short_name          = "exampleag"
+
+  email_receiver {
+    name          = "admin"
+    email_address = "admin@example.com"
+  }
+}
+
+# Define Metric Alert
+resource "azurerm_monitor_metric_alert" "example" {
+  name                = "example-metric-alert"
+  resource_group_name = azurerm_resource_group.example.name
+  scopes              = ["/subscriptions/${var.subscription_id}/resourceGroups/${azurerm_resource_group.example.name}"]
+  description         = "An example metric alert for monitoring resource usage"
+  severity            = 2
+  enabled             = true
+  frequency           = "PT1M"
+  window_size         = "PT5M"
+
+  criteria {
+    metric_namespace = "Microsoft.Compute/virtualMachines"
+    metric_name      = "Percentage CPU"
+    aggregation      = "Average"
+    operator         = "GreaterThan"
+    threshold        = 80
+
+    dimension {
+      name     = "ResourceType"
+      operator = "Include"
+      values   = ["Standard_DDSv5"]
+    }
+  }
+
+  action {
+    action_group_id = azurerm_monitor_action_group.example.id
+  }
+}
+
+# Define Variables
+variable "subscription_id" {
+  description = "The subscription ID to use for the alert scope"
+  type        = string
+}
+
+# Define Outputs
+output "alert_id" {
+  value = azurerm_monitor_metric_alert.example.id
+}2. Optional: Using null_resource for API CallsIf you need to make specific API calls that Terraform resources do not directly support, you can use a null_resource with a local-exec provisioner.Example null_resource for making API calls:resource "null_resource" "api_call" {
+  provisioner "local-exec" {
+    command = <<EOT
+      curl -X POST "https://management.azure.com/subscriptions/${var.subscription_id}/resourceGroups/${var.resource_group_name}/providers/Microsoft.Insights/metricAlerts/${var.alert_name}?api-version=2018-03-01" \
+      -H "Authorization: Bearer ${data.azurerm_client_config.current.access_token}" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "location": "global",
+        "properties": {
+          "description": "An example metric alert for quota",
+          "severity": 2,
+          "enabled": true,
+          "scopes": [
+            "/subscriptions/${var.subscription_id}/resourceGroups/${var.resource_group_name}"
+          ],
+          "criteria": {
+            "allOf": [
+              {
+                "name": "QuotaUsage",
+                "metricName": {
+                  "value": "Percentage CPU",
+                  "namespace": "Microsoft.Compute/virtualMachines"
+                },
+                "operator": "GreaterThan",
+                "threshold": 80,
+                "aggregation": "Average"
+              }
+            ]
+          },
+          "actionGroups": [
+            {
+              "actionGroupId": "/subscriptions/${var.subscription_id}/resourceGroups/${var.resource_group_name}/providers/microsoft.insights/actionGroups/${azurerm_monitor_action_group.example.name}"
+            }
+          ],
+          "windowSize": "PT5M",
+          "evaluationFrequency": "PT1M"
+        }
+      }'
+    EOT
+  }
+}
+
+data "azurerm_client_config" "current" {}Summary
