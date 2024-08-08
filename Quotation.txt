@@ -1,0 +1,81 @@
+As of the latest updates, **Azure Quotas Alerts** (alerts specifically designed to monitor Azure resource usage against quota limits) do not have native support in Terraform. However, there are some workarounds and alternative approaches that can be considered:
+
+### 1. **Azure Monitor Metric Alerts for Quotas:**
+
+While Terraform doesn't directly support Azure Quotas Alerts, you can sometimes use **Azure Monitor Metric Alerts** to monitor metrics that are indirectly related to quotas. For example, if you are monitoring the usage of a resource (like CPU or memory usage of VMs), you can set up metric alerts that trigger when these usage metrics approach the limits imposed by your quotas.
+
+This method relies on metrics provided by Azure Monitor and might not directly reflect quota limits but can give a good approximation if the appropriate metric is available.
+
+### 2. **Azure REST API or Azure CLI via Terraform:**
+
+Another approach is to use the Azure REST API or Azure CLI to create quota alerts and integrate these calls within Terraform using the `null_resource` and `local-exec` or `remote-exec` provisioners.
+
+### 3. **Custom Scripts in Terraform:**
+
+You can write custom scripts that use the Azure CLI or PowerShell to create or manage quota alerts and then call these scripts from Terraform using the `null_resource` and provisioners.
+
+### Example: Using a `null_resource` and Azure CLI
+
+Here's how you might use a `null_resource` in Terraform to run an Azure CLI command that creates a quota alert.
+
+```hcl
+provider "azurerm" {
+  features {}
+}
+
+resource "azurerm_resource_group" "example" {
+  name     = "example-resources"
+  location = "East US"
+}
+
+resource "azurerm_monitor_action_group" "example" {
+  name                = "example-actiongroup"
+  resource_group_name = azurerm_resource_group.example.name
+  short_name          = "exampleag"
+
+  email_receiver {
+    name          = "admin"
+    email_address = "admin@example.com"
+  }
+}
+
+resource "null_resource" "create_quota_alert" {
+  provisioner "local-exec" {
+    command = <<EOT
+      az monitor metrics alert create \
+        --name "QuotaAlert" \
+        --resource-group ${azurerm_resource_group.example.name} \
+        --scopes "/subscriptions/${var.subscription_id}/providers/Microsoft.Compute/locations/${var.region}" \
+        --condition "total > 60" \
+        --action-group ${azurerm_monitor_action_group.example.id}
+    EOT
+  }
+}
+
+variable "subscription_id" {
+  description = "Azure subscription ID"
+  type        = string
+}
+
+variable "region" {
+  description = "Azure region"
+  type        = string
+  default     = "East US"
+}
+
+output "quota_alert_name" {
+  value = "QuotaAlert"
+}
+```
+
+### 4. **Manual Setup:**
+
+Another approach, although not ideal for automation, is to manually create Azure Quotas Alerts through the Azure Portal or via Azure CLI/PowerShell outside of Terraform and manage them separately.
+
+### Summary
+
+- **Direct Support:** There is no direct support for Azure Quotas Alerts in Terraform.
+- **Workarounds:** Use Azure Monitor Metric Alerts, Azure REST API, Azure CLI, or custom scripts to create or manage quota-related alerts.
+- **Automation:** You can automate the creation of these alerts by integrating Azure CLI or API calls within Terraform using `null_resource`.
+
+While not as straightforward as other resources, these approaches allow you to achieve some level of automation for quota-related monitoring in Azure using Terraform.
