@@ -51,3 +51,53 @@ resource "azapi_resource" "quota_alert" {
     }
   })
 }
+≈====
+variable "thresholds" {
+  type    = list(number)
+  default = [60, 70, 80]
+}
+
+variable "severities" {
+  type    = list(number)
+  default = [2, 1, 0]
+}
+======
+resource "azapi_resource" "quota_alert" {
+  type      = "Microsoft.AlertsManagement/scheduledQueryRules@2021-08-01"
+  name      = "QuotaAlert"
+  location  = azurerm_resource_group.example.location
+  parent_id = azurerm_resource_group.example.id
+
+  body = jsonencode({
+    properties = {
+      description = "Alert when Azure quota usage exceeds thresholds."
+      enabled     = true
+      source = {
+        query         = "AzureQuota_CL | where Total_Used_d >= Threshold_d"
+        dataSourceId  = azurerm_log_analytics_workspace.example.id
+        queryType     = "ResultCount"
+      }
+      schedule = {
+        frequencyInMinutes   = 15
+        timeWindowInMinutes  = 60
+      }
+      criteria = {
+        allOf = [
+          # Dynamic block to loop over thresholds and severities
+          for i in range(length(var.thresholds)) : {
+            threshold        = var.thresholds[i]
+            operator         = "GreaterThanOrEqual"
+            timeAggregation  = "Total"
+            metricMeasureType = "Count"
+            severity         = var.severities[i]
+          }
+        ]
+      }
+      actions = {
+        actionGroups = [
+          azurerm_monitor_action_group.example.id
+        ]
+      }
+    }
+  })
+}
