@@ -1,0 +1,53 @@
+resource "azapi_resource" "quota_alert" {
+  type      = "Microsoft.AlertsManagement/scheduledQueryRules@2021-08-01"
+  name      = "QuotaAlert"
+  location  = azurerm_resource_group.example.location
+  parent_id = azurerm_resource_group.example.id
+
+  body = jsonencode({
+    properties = {
+      description = "Alert when Azure quota usage exceeds thresholds."
+      enabled     = true
+      severity    = 2
+      source = {
+        query         = "AzureQuota_CL | where Total_Used_d >= Threshold_d"
+        dataSourceId  = azurerm_log_analytics_workspace.example.id
+        queryType     = "ResultCount"
+      }
+      schedule = {
+        frequencyInMinutes   = 15
+        timeWindowInMinutes  = 60
+      }
+      criteria = {
+        allOf = [
+          {
+            threshold        = 60
+            operator         = "GreaterThanOrEqual"
+            timeAggregation  = "Total"
+            metricMeasureType = "Count"
+            severity         = 2  # Severity level 2 for 60% threshold
+          },
+          {
+            threshold        = 70
+            operator         = "GreaterThanOrEqual"
+            timeAggregation  = "Total"
+            metricMeasureType = "Count"
+            severity         = 1  # Severity level 1 for 70% threshold
+          },
+          {
+            threshold        = 80
+            operator         = "GreaterThanOrEqual"
+            timeAggregation  = "Total"
+            metricMeasureType = "Count"
+            severity         = 0  # Severity level 0 for 80% threshold
+          }
+        ]
+      }
+      actions = {
+        actionGroups = [
+          azurerm_monitor_action_group.example.id
+        ]
+      }
+    }
+  })
+}
