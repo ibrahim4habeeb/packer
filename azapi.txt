@@ -101,3 +101,29 @@ resource "azapi_resource" "quota_alert" {
     }
   })
 }
+========
+variable "severity_threshold_map" {
+  type = map(number)
+  default = {
+    2 = 80  # Severity 2 with Threshold 80
+    1 = 70  # Severity 1 with Threshold 70
+    0 = 60  # Severity 0 with Threshold 60
+  }
+}
+
+resource "azurerm_monitor_metric_alert" "example" {
+  for_each            = var.severity_threshold_map
+  name                = "example-metricalert-${each.key}"
+  resource_group_name = "example-resources"
+  scopes              = [azurerm_virtual_machine.example.id]
+  criteria {
+    aggregation = "Total"
+    metric_name = "Percentage CPU"
+    operator    = "GreaterThan"
+    threshold   = each.value  # Use the threshold value from the map
+  }
+
+  properties = jsonencode({
+    severity = each.key  # Use the severity value from the map
+  })
+}
