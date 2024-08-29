@@ -1,0 +1,97 @@
+To achieve this, you can use Terraform's for_each or count with dynamic variables in your ABC.json.tmpl file. This will allow you to loop over a set of values for severity and threshold, dynamically generating the JSON file content for each combination.Step-by-Step Solution:Create a JSON Template with Placeholders: Modify your ABC.json.tmpl file to include placeholders for severity and threshold. Use Terraform template syntax for this purpose:ABC.json.tmpl{
+  "severity": "${severity}",
+  "threshold": ${threshold},
+  "other_parameters": "your other JSON properties here"
+}Define Variables and Local Values in Terraform: Define variables for severity and threshold and create combinations using local in your Terraform configuration.main.tfvariable "severity_values" {
+  default = [0, 1, 2]
+}
+
+variable "threshold_values" {
+  default = [80, 70, 60]
+}
+
+# Create combinations of severity and threshold
+locals {
+  alert_configs = [
+    for s in var.severity_values : [
+      for t in var.threshold_values : {
+        severity  = s
+        threshold = t
+      }
+    ]
+  ] 
+  |> flatten
+}Use for_each to Loop Over Combinations: Use for_each to loop over the local.alert_configs to dynamically create the JSON files for each combination.resource "azapi_resource" "quota_alert_rule" {
+  for_each = { for idx, config in local.alert_configs : idx => config }
+
+  type      = "Microsoft.Insights/scheduledQueryRules@2022-09-01-preview"
+  name      = "quota-alert-rule-${each.key}"
+  location  = "your-location"
+  parent_id = "your-parent-id"
+
+  properties = jsonencode({
+    severity  = each.value["severity"]
+    threshold = each.value["threshold"]
+    // Add other parameters for the alert
+  })
+}Dynamically Inject Values in JSON: Replace placeholders in ABC.json.tmpl with actual values using the templatefile function.resource "azapi_resource" "quota_alert_rule" {
+  for_each = { for idx, config in local.alert_configs : idx => config }
+
+  type      = "Microsoft.Insights/scheduledQueryRules@2022-09-01-preview"
+  name      = "quota-alert-rule-${each.key}"
+  location  = "your-location"
+  parent_id = "your-parent-id"
+
+  properties = templatefile("ABC.json.tmpl", {
+    severity  = each.value["severity"]
+    threshold = each.value["threshold"]
+  })
+}Explanation:Template (ABC.json.tmpl): This file contains placeholders ${severity} and ${threshold} which are replaced during the Terraform execution using templatefile.Variables and Locals: The severity_values and threshold_values are defined as variables. We then use a local value to create combinations of severity and threshold.for_each Usage: for_each is used to loop over each combination, generating a unique resource for each combination of severity and threshold.This approach ensures that each JSON file is dynamically created with the required values for severity and threshold, and all combinations are applied as separate resources.To achieve this, you can use Terraform's for_each or count with dynamic variables in your ABC.json.tmpl file. This will allow you to loop over a set of values for severity and threshold, dynamically generating the JSON file content for each combination.Step-by-Step Solution:Create a JSON Template with Placeholders: Modify your ABC.json.tmpl file to include placeholders for severity and threshold. Use Terraform template syntax for this purpose:ABC.json.tmpl{
+  "severity": "${severity}",
+  "threshold": ${threshold},
+  "other_parameters": "your other JSON properties here"
+}Define Variables and Local Values in Terraform: Define variables for severity and threshold and create combinations using local in your Terraform configuration.main.tfvariable "severity_values" {
+  default = [0, 1, 2]
+}
+
+variable "threshold_values" {
+  default = [80, 70, 60]
+}
+
+# Create combinations of severity and threshold
+locals {
+  alert_configs = [
+    for s in var.severity_values : [
+      for t in var.threshold_values : {
+        severity  = s
+        threshold = t
+      }
+    ]
+  ] 
+  |> flatten
+}Use for_each to Loop Over Combinations: Use for_each to loop over the local.alert_configs to dynamically create the JSON files for each combination.resource "azapi_resource" "quota_alert_rule" {
+  for_each = { for idx, config in local.alert_configs : idx => config }
+
+  type      = "Microsoft.Insights/scheduledQueryRules@2022-09-01-preview"
+  name      = "quota-alert-rule-${each.key}"
+  location  = "your-location"
+  parent_id = "your-parent-id"
+
+  properties = jsonencode({
+    severity  = each.value["severity"]
+    threshold = each.value["threshold"]
+    // Add other parameters for the alert
+  })
+}Dynamically Inject Values in JSON: Replace placeholders in ABC.json.tmpl with actual values using the templatefile function.resource "azapi_resource" "quota_alert_rule" {
+  for_each = { for idx, config in local.alert_configs : idx => config }
+
+  type      = "Microsoft.Insights/scheduledQueryRules@2022-09-01-preview"
+  name      = "quota-alert-rule-${each.key}"
+  location  = "your-location"
+  parent_id = "your-parent-id"
+
+  properties = templatefile("ABC.json.tmpl", {
+    severity  = each.value["severity"]
+    threshold = each.value["threshold"]
+  })
+}Explanation:Template (ABC.json.tmpl): This file contains placeholders ${severity} and ${threshold} which are replaced during the Terraform execution using templatefile.Variables and Locals: The severity_values and threshold_values are defined as variables. We then use a local value to create combinations of severity and threshold.for_each Usage: for_each is used to loop over each combination, generating a unique resource for each combination of severity and threshold.This approach ensures that each JSON file is dynamically created with the required values for severity and threshold, and all combinations are applied as separate resources.
