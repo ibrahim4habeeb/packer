@@ -1,0 +1,307 @@
+To expose your Jenkins applications from a private AKS cluster using Azure Application Gateway Ingress Controller (AGIC), you'll need to set up a Proof of Concept (POC). AGIC allows you to route external traffic to your AKS cluster securely and efficiently without relying on multiple Private Link Services. Below is an overview of the steps, prerequisites, and an example POC setup.PrerequisitesAzure Subscription: Ensure you have an active Azure subscription with sufficient permissions to create resources.Private AKS Cluster: Ensure your AKS cluster is private and running, with the required networking configurations.Azure Application Gateway: Deploy an Application Gateway in the same virtual network as your AKS cluster or ensure peering between the networks.Azure CLI and Kubectl: Ensure Azure CLI and kubectl are installed and configured to access your AKS cluster.AGIC Add-on: Install the Application Gateway Ingress Controller add-on in your AKS cluster.Helm: Install Helm for deploying AGIC and other components in the cluster.POC Setup using AGICHere's a step-by-step guide to create a POC:Step 1: Create an Azure Application GatewayDeploy an Application Gateway in the same virtual network as your AKS cluster, ensuring it has access to the private endpoints.Configure the Application Gateway with a public IP address for external access.Step 2: Install AGIC in your AKS ClusterAdd the AGIC Helm repository:helm repo add application-gateway-ingress https://appgwingress.blob.core.windows.net/ingress-azure-helm-package/
+helm repo updateInstall AGIC with Helm:helm install agic-ingress application-gateway-ingress/ingress-azure \
+  --set appgw.name=<APP_GW_NAME> \
+  --set appgw.resourceGroup=<RESOURCE_GROUP> \
+  --set appgw.subscriptionId=<SUBSCRIPTION_ID> \
+  --set appgw.shared=false \
+  --set armAuth.type=aadPodIdentity \
+  --set rbac.enabled=trueReplace <APP_GW_NAME>, <RESOURCE_GROUP>, and <SUBSCRIPTION_ID> with your Azure Application Gateway details.Step 3: Configure Ingress for Jenkins ApplicationsCreate an ingress YAML file for Jenkins. Below is an example:apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: jenkins-ingress
+  namespace: jenkins
+  annotations:
+    kubernetes.io/ingress.class: azure/application-gateway
+spec:
+  rules:
+  - host: jenkins.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: jenkins
+            port:
+              number: 8080Apply the ingress configuration:kubectl apply -f jenkins-ingress.yamlStep 4: DNS ConfigurationUpdate your DNS to point the jenkins.example.com domain to the public IP address of your Azure Application Gateway.Ensure SSL/TLS certificates are configured correctly for secure access.Testing the POCAccess the Jenkins application using the configured domain name, and ensure it is accessible from your network.Monitor traffic and logs to ensure AGIC is routing correctly.Next StepsTest scalability by adding more applications to ensure AGIC handles traffic efficiently.Fine-tune performance settings and security configurations in the Application Gateway.
+To set up the POC for exposing Jenkins applications from a private AKS cluster using Azure Gateway Ingress Controller (AGIC) with Terraform and Jenkins Configuration as Code (JCasC), here's an end-to-end guide with detailed steps:OverviewInfrastructure Setup: Use Terraform to deploy the required Azure resources, including AKS, Application Gateway, and AGIC.Jenkins Setup with JCasC: Configure Jenkins using JCasC to automate the deployment of Jenkins within the AKS cluster.Deploy AGIC: Use Helm to deploy AGIC within the AKS cluster, managed through Terraform.Configure Ingress: Set up Ingress rules to route traffic through AGIC to your Jenkins application.PrerequisitesTerraform installed and configured.Azure CLI installed and authenticated.Kubectl and Helm installed.Jenkins JCasC YAML configuration ready.Step-by-Step Guide1. Terraform Configuration for AKS, Application Gateway, and AGICCreate the Terraform Files:providers.tf: Define Azure provider.provider "azurerm" {
+  features {}
+}main.tf: Define resources for AKS, Application Gateway, and AGIC.resource "azurerm_resource_group" "aks_rg" {
+  name     = "aks-resource-group"
+  location = "East US"
+}
+
+resource "azurerm_virtual_network" "vnet" {
+  name                = "aks-vnet"
+  resource_group_name = azurerm_resource_group.aks_rg.name
+  location            = azurerm_resource_group.aks_rg.location
+  address_space       = ["10.0.0.0/16"]
+}
+
+resource "azurerm_subnet" "subnet" {
+  name                 = "aks-subnet"
+  resource_group_name  = azurerm_resource_group.aks_rg.name
+  virtual_network_name = azurerm_virtual_network.vnet.name
+  address_prefixes     = ["10.0.1.0/24"]
+}
+
+resource "azurerm_kubernetes_cluster" "aks" {
+  name                = "aks-cluster"
+  location            = azurerm_resource_group.aks_rg.location
+  resource_group_name = azurerm_resource_group.aks_rg.name
+  dns_prefix          = "aks"
+
+  default_node_pool {
+    name       = "default"
+    node_count = 2
+    vm_size    = "Standard_DS2_v2"
+    vnet_subnet_id = azurerm_subnet.subnet.id
+  }
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  network_profile {
+    network_plugin = "azure"
+    network_policy = "azure"
+  }
+}
+
+resource "azurerm_application_gateway" "appgw" {
+  name                = "app-gateway"
+  location            = azurerm_resource_group.aks_rg.location
+  resource_group_name = azurerm_resource_group.aks_rg.name
+  sku {
+    name     = "WAF_v2"
+    tier     = "WAF_v2"
+    capacity = 2
+  }
+  gateway_ip_configuration {
+    name      = "my-gateway-ip-config"
+    subnet_id = azurerm_subnet.subnet.id
+  }
+}
+
+resource "azurerm_application_gateway_managed_identity" "agic_identity" {
+  application_gateway_id = azurerm_application_gateway.appgw.id
+  identity {
+    type = "SystemAssigned"
+  }
+}outputs.tf: Define outputs to fetch necessary values.output "aks_cluster_name" {
+  value = azurerm_kubernetes_cluster.aks.name
+}
+
+output "appgw_id" {
+  value = azurerm_application_gateway.appgw.id
+}Deploy with Terraform:terraform init
+terraform apply2. Deploy Jenkins with JCasC in AKSCreate JCasC Configuration: Prepare jenkins-casc.yaml for Jenkins configuration.jenkins:
+  systemMessage: "Welcome to Jenkins configured as Code"
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "admin"
+          password: "${JENKINS_ADMIN_PASSWORD}"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: falseDeploy Jenkins Using Helm:helm repo add jenkins https://charts.jenkins.io
+helm repo update
+
+helm install jenkins jenkins/jenkins \
+  --set controller.jenkinsUrl=http://jenkins.example.com \
+  --set controller.adminPassword=${JENKINS_ADMIN_PASSWORD} \
+  --set controller.jCasC.configScripts.jenkins-casc.yaml="$(cat jenkins-casc.yaml)"3. Deploy AGIC Using Terraform and HelmInstall AGIC with Helm Using Terraform Script:resource "helm_release" "agic" {
+  name       = "agic"
+  repository = "https://appgwingress.blob.core.windows.net/ingress-azure-helm-package/"
+  chart      = "ingress-azure"
+
+  set {
+    name  = "appgw.name"
+    value = azurerm_application_gateway.appgw.name
+  }
+
+  set {
+    name  = "appgw.resourceGroup"
+    value = azurerm_resource_group.aks_rg.name
+  }
+
+  set {
+    name  = "appgw.subscriptionId"
+    value = "<SUBSCRIPTION_ID>"
+  }
+
+  set {
+    name  = "armAuth.type"
+    value = "aadPodIdentity"
+  }
+
+  set {
+    name  = "rbac.enabled"
+    value = "true"
+  }
+}4. Configure Ingress for Jenkins ApplicationCreate an Ingress YAML for Jenkins:apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: jenkins-ingress
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: azure/application-gateway
+spec:
+  rules:
+  - host: jenkins.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: jenkins
+            port:
+              number: 8080Deploy the Ingress:kubectl apply -f jenkins-ingress.yaml5. Testing and ValidationTest the setup by accessing Jenkins via jenkins.example.com.Validate AGIC is routing traffic correctly by checking Application Gateway logs.Next StepsFine-tune Jenkins configuration using JCasC.Enhance security settings on Application Gateway.Implement monitoring and scaling as needed.Let me know if you need further details on any specific step!
+To create a POC for exposing Jenkins applications running in a private AKS cluster using Azure Gateway Ingress Controller (AGIC), we'll focus on a setup that respects the private nature of your AKS cluster. In this setup, AGIC will manage internal routing while the Application Gateway handles external access.Here’s a detailed end-to-end guide to achieve the POC using Terraform, AGIC, and Jenkins Configuration as Code (JCasC).Overview of the SolutionInfrastructure Deployment: Use Terraform to deploy a private AKS cluster, an Application Gateway in the same virtual network, and AGIC for managing ingress.Jenkins Deployment with JCasC: Deploy Jenkins in the private AKS using Helm with configurations defined through JCasC.AGIC Integration: Configure AGIC to use the Application Gateway for ingress routing to the Jenkins application.Network Configuration: Ensure that the Application Gateway is appropriately set up with private IP routing to maintain the security of the private AKS cluster.PrerequisitesAzure Subscription: Active subscription with permissions to create resources.Terraform, Azure CLI, Helm, and Kubectl: Installed and configured.JCasC Configuration: YAML configuration for Jenkins setup.Step-by-Step POC Guide1. Infrastructure Setup with TerraformCreate Terraform Files:providers.tf: Define the Azure provider.provider "azurerm" {
+  features {}
+}main.tf: Define resources for the private AKS cluster, Application Gateway, and AGIC setup.resource "azurerm_resource_group" "aks_rg" {
+  name     = "aks-resource-group"
+  location = "East US"
+}
+
+resource "azurerm_virtual_network" "vnet" {
+  name                = "aks-vnet"
+  resource_group_name = azurerm_resource_group.aks_rg.name
+  location            = azurerm_resource_group.aks_rg.location
+  address_space       = ["10.0.0.0/16"]
+}
+
+resource "azurerm_subnet" "aks_subnet" {
+  name                 = "aks-subnet"
+  resource_group_name  = azurerm_resource_group.aks_rg.name
+  virtual_network_name = azurerm_virtual_network.vnet.name
+  address_prefixes     = ["10.0.1.0/24"]
+  private_endpoint_network_policies_enabled = false
+  private_link_service_network_policies_enabled = false
+}
+
+resource "azurerm_kubernetes_cluster" "aks" {
+  name                = "aks-cluster"
+  location            = azurerm_resource_group.aks_rg.location
+  resource_group_name = azurerm_resource_group.aks_rg.name
+  dns_prefix          = "aks"
+
+  default_node_pool {
+    name            = "default"
+    node_count      = 2
+    vm_size         = "Standard_DS2_v2"
+    vnet_subnet_id  = azurerm_subnet.aks_subnet.id
+  }
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  network_profile {
+    network_plugin = "azure"
+    network_policy = "azure"
+  }
+
+  private_cluster_enabled = true
+  api_server_authorized_ip_ranges = [] # Allow API server access only through private endpoints
+}
+
+resource "azurerm_application_gateway" "appgw" {
+  name                = "app-gateway"
+  location            = azurerm_resource_group.aks_rg.location
+  resource_group_name = azurerm_resource_group.aks_rg.name
+  sku {
+    name     = "WAF_v2"
+    tier     = "WAF_v2"
+    capacity = 2
+  }
+  gateway_ip_configuration {
+    name      = "my-gateway-ip-config"
+    subnet_id = azurerm_subnet.aks_subnet.id
+  }
+  frontend_ip_configuration {
+    name                 = "private-frontend-ip"
+    private_ip_address   = "10.0.1.5"
+    private_ip_address_allocation = "Static"
+    subnet_id            = azurerm_subnet.aks_subnet.id
+  }
+}
+
+resource "azurerm_application_gateway_managed_identity" "agic_identity" {
+  application_gateway_id = azurerm_application_gateway.appgw.id
+  identity {
+    type = "SystemAssigned"
+  }
+}outputs.tf: Define outputs to fetch necessary values.output "aks_cluster_name" {
+  value = azurerm_kubernetes_cluster.aks.name
+}
+
+output "appgw_id" {
+  value = azurerm_application_gateway.appgw.id
+}Deploy with Terraform:terraform init
+terraform apply2. Deploy Jenkins with JCasC in Private AKSPrepare JCasC Configuration: Define jenkins-casc.yaml for Jenkins setup.jenkins:
+  systemMessage: "Welcome to Jenkins configured as Code"
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "admin"
+          password: "${JENKINS_ADMIN_PASSWORD}"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: falseDeploy Jenkins Using Helm:helm repo add jenkins https://charts.jenkins.io
+helm repo update
+
+helm install jenkins jenkins/jenkins \
+  --set controller.jenkinsUrl=http://jenkins.internal \
+  --set controller.adminPassword=${JENKINS_ADMIN_PASSWORD} \
+  --set controller.jCasC.configScripts.jenkins-casc.yaml="$(cat jenkins-casc.yaml)"3. Deploy AGIC with Terraform and HelmInstall AGIC with Helm Using Terraform Script:resource "helm_release" "agic" {
+  name       = "agic"
+  repository = "https://appgwingress.blob.core.windows.net/ingress-azure-helm-package/"
+  chart      = "ingress-azure"
+
+  set {
+    name  = "appgw.name"
+    value = azurerm_application_gateway.appgw.name
+  }
+
+  set {
+    name  = "appgw.resourceGroup"
+    value = azurerm_resource_group.aks_rg.name
+  }
+
+  set {
+    name  = "appgw.subscriptionId"
+    value = "<SUBSCRIPTION_ID>"
+  }
+
+  set {
+    name  = "armAuth.type"
+    value = "aadPodIdentity"
+  }
+
+  set {
+    name  = "rbac.enabled"
+    value = "true"
+  }
+}4. Configure Ingress for Jenkins ApplicationCreate an Ingress YAML for Jenkins:apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: jenkins-ingress
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: azure/application-gateway
+spec:
+  rules:
+  - host: jenkins.internal
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: jenkins
+            port:
+              number: 8080Deploy the Ingress:kubectl apply -f jenkins-ingress.yaml5. Testing and ValidationAccess Jenkins: Ensure you can access Jenkins internally via the Application Gateway.Private DNS Setup: Configure internal DNS for jenkins.internal if required.Validate AGIC Routing: Check that AGIC is correctly managing the routing through the Application Gateway to Jenkins.Next StepsScaling: Test scaling by adding more applications and verifying traffic management.Security: Review security settings on the Application Gateway and ensure private communication is maintained.This approach ensures that Jenkins applications are exposed securely from your private AKS cluster using AGIC and the Application Gateway, without violating the private network constraints. Let me know if you need more details on any step!
