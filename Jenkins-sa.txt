@@ -1,0 +1,34 @@
+pipeline {
+    agent any
+    parameters {
+        choice(name: 'STORAGE_ACCOUNT', choices: ['boc-acc', 'cov'], description: 'Select the Azure Storage Account')
+        choice(name: 'CONTAINER', choices: ['artifact', 'backup'], description: 'Select the Blob Container')
+        string(name: 'ARTIFACT_NAME', defaultValue: '', description: 'Enter the Artifact/Job Name to delete')
+        string(name: 'BUILD_NUMBER', defaultValue: '', description: 'Enter the Build Number to delete')
+    }
+    stages {
+        stage('List Artifacts') {
+            steps {
+                script {
+                    echo "Listing artifacts from storage account: ${params.STORAGE_ACCOUNT} and container: ${params.CONTAINER}"
+                    sh """
+                        azcopy list \
+                        https://${params.STORAGE_ACCOUNT}.blob.core.windows.net/${params.CONTAINER}/
+                    """
+                }
+            }
+        }
+        stage('Delete Selected Artifact') {
+            steps {
+                script {
+                    echo "Deleting artifact: ${params.ARTIFACT_NAME}, build: ${params.BUILD_NUMBER} from storage account: ${params.STORAGE_ACCOUNT}"
+                    sh """
+                        azcopy remove \
+                        https://${params.STORAGE_ACCOUNT}.blob.core.windows.net/${params.CONTAINER}/${params.ARTIFACT_NAME}/${params.BUILD_NUMBER} \
+                        --recursive=true
+                    """
+                }
+            }
+        }
+    }
+}
