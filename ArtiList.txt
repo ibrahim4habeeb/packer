@@ -1,3 +1,30 @@
+====
+import groovy.json.JsonOutput
+import java.net.URL
+
+// URL of the CSV file
+def csvUrl = "https://jenkinsurl/path/to/csv"
+
+// Fetch the CSV content
+def csvContent
+try {
+    csvContent = new URL(csvUrl).text
+} catch (Exception e) {
+    return ["Error fetching CSV: ${e.message}"]
+}
+
+// Parse the CSV content
+def options = []
+csvContent.eachLine { line ->
+    def columns = line.split(",") // Assuming a comma-delimited CSV
+    if (columns.size() > 0) {
+        options << columns[0] // Add the first column value to options
+    }
+}
+
+// Return the list of options for the dropdown
+return options
+====
 pipeline {
     agent any
     stages {
@@ -38,3 +65,4 @@ pipeline {
         }
     }
 }
+
