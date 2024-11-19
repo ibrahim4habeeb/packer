@@ -1,3 +1,44 @@
+===
+import java.net.URL
+import java.net.HttpURLConnection
+
+// Jenkins credentials
+def username = "your-username"  // Replace with your Jenkins username
+def password = "your-password"  // Replace with your Jenkins password
+
+// URL of the CSV file
+def csvUrl = "https://jenkinsurl/path/to/csv"
+
+// Fetch CSV content with authentication
+def csvContent
+try {
+    def connection = new URL(csvUrl).openConnection() as HttpURLConnection
+    // Add Basic Authentication header
+    def basicAuth = "Basic " + "${username}:${password}".bytes.encodeBase64().toString()
+    connection.setRequestProperty("Authorization", basicAuth)
+
+    // Read the CSV content
+    if (connection.responseCode == 200) {
+        csvContent = connection.inputStream.text
+    } else {
+        return ["Error: ${connection.responseMessage} (${connection.responseCode})"]
+    }
+    connection.disconnect()
+} catch (Exception e) {
+    return ["Error fetching CSV: ${e.message}"]
+}
+
+// Parse the CSV content
+def options = []
+csvContent.eachLine { line ->
+    def columns = line.split(",") // Assuming a comma-delimited CSV
+    if (columns.size() > 0) {
+        options << columns[0] // Add the first column value to options
+    }
+}
+
+// Return the list of options for the dropdown
+return options
 ====
 import groovy.json.JsonOutput
 import java.net.URL
