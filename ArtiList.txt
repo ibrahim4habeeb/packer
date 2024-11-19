@@ -1,4 +1,54 @@
 ===
+// Replace this with your Jenkins URL to the CSV file
+def csvFileUrl = "http://your-jenkins-url/path-to-your-csv-file.csv"
+
+// Function to fetch and parse the CSV file
+def getFirstColumnItems(csvUrl) {
+    def items = []
+    try {
+        // Configure SSL to allow insecure connections
+        def connection = new URL(csvUrl).openConnection()
+        connection.setRequestMethod("GET")
+        connection.setDoOutput(true)
+
+        // Skip SSL verification for HTTPS URLs
+        if (connection instanceof javax.net.ssl.HttpsURLConnection) {
+            connection.setSSLSocketFactory(createInsecureSocketFactory())
+            connection.setHostnameVerifier({ hostname, session -> true } as javax.net.ssl.HostnameVerifier)
+        }
+
+        connection.connect()
+        def csvData = connection.inputStream.text
+
+        // Split the content line by line and process the first column
+        csvData.split("\n").each { line ->
+            def columns = line.split(",") // Split by comma
+            if (columns.size() > 0) {
+                items << columns[0].trim() // Add the first column item
+            }
+        }
+    } catch (Exception e) {
+        items << "Error: Unable to fetch or parse CSV (${e.message})"
+    }
+    return items
+}
+
+// Helper function to create an insecure SSL socket factory
+def createInsecureSocketFactory() {
+    def trustAllCerts = [
+        [checkClientTrusted: { chain, authType -> },
+         checkServerTrusted: { chain, authType -> },
+         getAcceptedIssuers: { -> null }] as javax.net.ssl.X509TrustManager
+    ]
+
+    def sc = javax.net.ssl.SSLContext.getInstance("TLS")
+    sc.init(null, trustAllCerts as javax.net.ssl.TrustManager[], new java.security.SecureRandom())
+    return sc.getSocketFactory()
+}
+
+// Return the first column items for the dropdown
+return getFirstColumnItems(csvFileUrl)
+===
 import java.net.URL
 import java.net.HttpURLConnection
 
