@@ -1,0 +1,40 @@
+pipeline {
+    agent any
+    stages {
+        stage('Download CSV') {
+            steps {
+                script {
+                    // Define the URL of the CSV file
+                    def csvUrl = "https://jenkins-url/job/testjob/artifact/test.csv"
+                    
+                    // Define the workspace file path
+                    def csvFile = "${env.WORKSPACE}/test.csv"
+                    
+                    // Download the CSV file
+                    sh """
+                        curl -o ${csvFile} ${csvUrl}
+                    """
+                }
+            }
+        }
+        stage('Extract First Column') {
+            steps {
+                script {
+                    // Extract the first column from the CSV file
+                    sh """
+                        awk -F',' '{print \$1}' ${env.WORKSPACE}/test.csv > ${env.WORKSPACE}/first_column.txt
+                    """
+                    
+                    // Print the extracted column
+                    sh "cat ${env.WORKSPACE}/first_column.txt"
+                }
+            }
+        }
+    }
+    post {
+        always {
+            // Cleanup workspace
+            cleanWs()
+        }
+    }
+}
