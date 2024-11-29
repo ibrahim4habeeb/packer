@@ -1,3 +1,64 @@
+=======
+for Multiple dir
+pipeline {
+    agent any
+    environment {
+        AZCOPY_SRC_BASE = "https://ur-sa-url/arti/test101/"
+        AZCOPY_DEST_BASE = "https://ur-sa-url/backups/"
+        DIR_NAMES = "dir-name1,dir-name2,dir-name3" // Comma-separated list of directories
+    }
+    stages {
+        stage('Process Directories') {
+            steps {
+                script {
+                    def dirList = env.DIR_NAMES.split(',')
+                    
+                    dirList.each { dirName ->
+                        echo "Processing directory: ${dirName}"
+                        
+                        def srcDir = "${AZCOPY_SRC_BASE}${dirName}"
+                        def destDir = "${AZCOPY_DEST_BASE}${dirName}"
+                        
+                        echo "Copying from ${srcDir} to ${destDir}"
+                        def copyCommand = "azcopy cp ${srcDir} ${destDir} --recursive=true"
+                        def copyResult = sh(script: copyCommand, returnStatus: true)
+                        
+                        if (copyResult != 0) {
+                            error "Copy operation failed for ${dirName}. Aborting pipeline."
+                        }
+                        
+                        echo "Verifying the copy operation for ${destDir}"
+                        def verifyCommand = "azcopy list ${destDir} --recursive=true"
+                        def verifyResult = sh(script: verifyCommand, returnStatus: true)
+                        
+                        if (verifyResult != 0) {
+                            error "Verification failed for ${dirName}. Backup directory not found. Aborting pipeline."
+                        }
+                        
+                        echo "Deleting directory ${srcDir}"
+                        def deleteCommand = "azcopy remove ${srcDir} --recursive=true"
+                        def deleteResult = sh(script: deleteCommand, returnStatus: true)
+                        
+                        if (deleteResult != 0) {
+                            error "Delete operation failed for ${dirName}."
+                        } else {
+                            echo "Directory ${dirName} processed successfully."
+                        }
+                    }
+                }
+            }
+        }
+    }
+    post {
+        always {
+            echo "Pipeline execution completed."
+        }
+        failure {
+            echo "Pipeline failed. Check the logs for details."
+        }
+    }
+}
+====≈======
 pipeline {
     agent any
     environment {
