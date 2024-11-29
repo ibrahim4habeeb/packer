@@ -1,0 +1,58 @@
+pipeline {
+    agent any
+    environment {
+        AZCOPY_SRC = "https://ur-sa-url/arti/test101/dir-name"
+        AZCOPY_DEST = "https://ur-sa-url/backups"
+    }
+    stages {
+        stage('Copy to Backup Location') {
+            steps {
+                script {
+                    echo "Copying from ${AZCOPY_SRC} to ${AZCOPY_DEST}"
+                    def copyCommand = "azcopy cp ${AZCOPY_SRC} ${AZCOPY_DEST} --recursive=true"
+                    def copyResult = sh(script: copyCommand, returnStatus: true)
+
+                    if (copyResult != 0) {
+                        error "Copy operation failed. Aborting pipeline."
+                    }
+                }
+            }
+        }
+        stage('Verify Copy Operation') {
+            steps {
+                script {
+                    echo "Verifying the copy operation for ${AZCOPY_SRC}"
+                    def checkCommand = "azcopy list ${AZCOPY_DEST}/dir-name --recursive=true"
+                    def verifyResult = sh(script: checkCommand, returnStatus: true)
+
+                    if (verifyResult != 0) {
+                        error "Verification failed. Backup directory not found. Aborting pipeline."
+                    }
+                }
+            }
+        }
+        stage('Delete Directory') {
+            steps {
+                script {
+                    echo "Deleting directory ${AZCOPY_SRC}"
+                    def deleteCommand = "azcopy remove ${AZCOPY_SRC} --recursive=true"
+                    def deleteResult = sh(script: deleteCommand, returnStatus: true)
+
+                    if (deleteResult != 0) {
+                        error "Delete operation failed."
+                    } else {
+                        echo "Directory ${AZCOPY_SRC} deleted successfully."
+                    }
+                }
+            }
+        }
+    }
+    post {
+        always {
+            echo "Pipeline execution completed."
+        }
+        failure {
+            echo "Pipeline failed. Check the logs for details."
+        }
+    }
+}
