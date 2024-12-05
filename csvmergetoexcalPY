@@ -190,3 +190,43 @@ output_excel_file = "merged_excel_with_jenkins_and_indexes.xlsx"
 merged_data.to_excel(output_excel_file, index=False)
 
 print(f"All CSV files have been merged into '{output_excel_file}' with Jenkins names and respective indexes.")
+####
+import pandas as pd
+
+# List of CSV file names
+csv_files = [
+    "file1.csv",
+    "file2.csv",
+    "file3.csv",
+    "file4.csv",
+    "file5.csv",
+    "file6.csv",
+    "file7.csv",
+    "file8.csv",
+]
+
+# Excel file name to save
+output_excel = "merged_excel.xlsx"
+
+# Initialize an empty list to hold dataframes
+merged_data = []
+
+# Loop through each file and append dataframes with labels
+for i, file in enumerate(csv_files):
+    # Add a row with the custom label
+    label_row = pd.DataFrame([[f"jksm500{i}"]], columns=["Label"])
+    
+    # Read the CSV file, preserving 'N/A'
+    df = pd.read_csv(file, keep_default_na=False, na_values=["N/A"])
+
+    # Add label row and dataframe to the merged data
+    merged_data.append(label_row)
+    merged_data.append(df)
+
+# Concatenate all dataframes
+final_data = pd.concat(merged_data, ignore_index=True)
+
+# Write to Excel
+final_data.to_excel(output_excel, index=False, header=False)
+
+print(f"Merged Excel file has been saved as '{output_excel}'")
