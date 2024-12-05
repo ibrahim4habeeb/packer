@@ -61,3 +61,43 @@ merged_data.to_excel(output_excel_file, index=False)
 
 print(f"All CSV files have been merged into '{output_excel_file}' successfully in a single sheet.")
 
+######
+import pandas as pd
+import os
+
+# List of CSV file paths
+csv_files = [
+    "file1.csv",
+    "file2.csv",
+    "file3.csv",
+    "file4.csv",
+    "file5.csv",
+    "file6.csv",
+    "file7.csv",
+    "file8.csv",
+    "file9.csv"
+]
+
+# Start Jenkins names from 500
+jenkins_names = [str(i) for i in range(500, 509)]
+
+# Create an empty dataframe to hold all the data
+merged_data = pd.DataFrame()
+
+# Loop through each Jenkins name and its corresponding CSV file
+for jenkins_name, csv_file in zip(jenkins_names, csv_files):
+    if os.path.exists(csv_file):
+        # Add a row with Jenkins name
+        jenkins_row = pd.DataFrame([[jenkins_name]], columns=["Jenkins Name"])
+        # Read the CSV file while preserving "N/A" as a string
+        df = pd.read_csv(csv_file, keep_default_na=False)
+        # Concatenate Jenkins row and its respective CSV data
+        merged_data = pd.concat([merged_data, jenkins_row, df], ignore_index=True)
+    else:
+        print(f"File not found: {csv_file}")
+
+# Save the merged data to an Excel file
+output_excel_file = "merged_excel_with_jenkins.xlsx"
+merged_data.to_excel(output_excel_file, index=False)
+
+print(f"All CSV files have been merged into '{output_excel_file}' with Jenkins names.")
