@@ -143,3 +143,50 @@ output_excel_file = "merged_excel_with_indexes_and_jenkins.xlsx"
 merged_data.to_excel(output_excel_file, index=False)
 
 print(f"All CSV files have been merged into '{output_excel_file}' with Jenkins names and respective indexes.")
+#####
+import pandas as pd
+import os
+
+# List of CSV file paths
+csv_files = [
+    "file1.csv",
+    "file2.csv",
+    "file3.csv",
+    "file4.csv",
+    "file5.csv",
+    "file6.csv",
+    "file7.csv",
+    "file8.csv",
+    "file9.csv"
+]
+
+# Jenkins names from jksm500 to jksm509
+jenkins_names = [f"jksm{i}" for i in range(500, 509)]
+
+# Create an empty DataFrame to hold all the data
+merged_data = pd.DataFrame()
+
+# Loop through each Jenkins name and its corresponding CSV file
+for jenkins_name, csv_file in zip(jenkins_names, csv_files):
+    if os.path.exists(csv_file):
+        # Read the CSV file while preserving "N/A" as a string
+        df = pd.read_csv(csv_file, keep_default_na=False)
+        
+        # Add the Jenkins name as a new row
+        jenkins_row = pd.DataFrame([[jenkins_name]], columns=df.columns)
+        merged_data = pd.concat([merged_data, jenkins_row], ignore_index=True)
+        
+        # Add the index as a new row
+        index_row = pd.DataFrame([df.index.tolist()], columns=df.columns[:len(df.index)])
+        merged_data = pd.concat([merged_data, index_row], ignore_index=True)
+        
+        # Add the CSV data without its index
+        merged_data = pd.concat([merged_data, df], ignore_index=True)
+    else:
+        print(f"File not found: {csv_file}")
+
+# Save the merged data to an Excel file
+output_excel_file = "merged_excel_with_jenkins_and_indexes.xlsx"
+merged_data.to_excel(output_excel_file, index=False)
+
+print(f"All CSV files have been merged into '{output_excel_file}' with Jenkins names and respective indexes.")
