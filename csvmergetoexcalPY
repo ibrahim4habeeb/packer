@@ -1,0 +1,28 @@
+import pandas as pd
+import os
+
+# List of CSV file paths
+csv_files = [
+    "file1.csv",
+    "file2.csv",
+    "file3.csv",
+    "file4.csv",
+    "file5.csv",
+    "file6.csv",
+    "file7.csv",
+    "file8.csv"
+]
+
+# Create a new Excel writer object
+output_excel_file = "merged_excel.xlsx"
+with pd.ExcelWriter(output_excel_file, engine="xlsxwriter") as writer:
+    for i, csv_file in enumerate(csv_files):
+        if os.path.exists(csv_file):
+            # Read the CSV file
+            df = pd.read_csv(csv_file)
+            # Write to a new sheet in the Excel file
+            df.to_excel(writer, sheet_name=f"Sheet{i + 1}", index=False)
+        else:
+            print(f"File not found: {csv_file}")
+
+print(f"All CSV files have been merged into '{output_excel_file}' successfully.")
