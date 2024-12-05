@@ -230,3 +230,44 @@ final_data = pd.concat(merged_data, ignore_index=True)
 final_data.to_excel(output_excel, index=False, header=False)
 
 print(f"Merged Excel file has been saved as '{output_excel}'")
+########
+import pandas as pd
+
+# List of CSV file names
+csv_files = [
+    "file1.csv",
+    "file2.csv",
+    "file3.csv",
+    "file4.csv",
+    "file5.csv",
+    "file6.csv",
+    "file7.csv",
+    "file8.csv",
+]
+
+# Excel file name to save
+output_excel = "merged_excel.xlsx"
+
+# Initialize a list to hold dataframes for merging
+merged_data = []
+
+# Loop through each file and process
+for i, file in enumerate(csv_files):
+    # Add a row with the custom name
+    custom_row = pd.DataFrame([[f"jksm500{i}"]])
+    
+    # Read the CSV file, preserving 'N/A'
+    df = pd.read_csv(file, keep_default_na=False, na_values=["N/A"])
+
+    # Add the custom row, index row, and CSV data to the merged data
+    merged_data.append(custom_row)
+    merged_data.append(pd.DataFrame([df.columns.tolist()]))  # Add index row (column headers)
+    merged_data.append(df)
+
+# Concatenate all dataframes
+final_data = pd.concat(merged_data, ignore_index=True)
+
+# Write to Excel
+final_data.to_excel(output_excel, index=False, header=False)
+
+print(f"Merged Excel file has been saved as '{output_excel}'")
