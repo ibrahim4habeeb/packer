@@ -26,3 +26,38 @@ with pd.ExcelWriter(output_excel_file, engine="xlsxwriter") as writer:
             print(f"File not found: {csv_file}")
 
 print(f"All CSV files have been merged into '{output_excel_file}' successfully.")
+
+
+####₹
+import pandas as pd
+import os
+
+# List of CSV file paths
+csv_files = [
+    "file1.csv",
+    "file2.csv",
+    "file3.csv",
+    "file4.csv",
+    "file5.csv",
+    "file6.csv",
+    "file7.csv",
+    "file8.csv"
+]
+
+# Create an empty dataframe to hold all the data
+merged_data = pd.DataFrame()
+
+# Loop through each CSV file and append it to the dataframe
+for csv_file in csv_files:
+    if os.path.exists(csv_file):
+        df = pd.read_csv(csv_file)
+        merged_data = pd.concat([merged_data, df], ignore_index=True)
+    else:
+        print(f"File not found: {csv_file}")
+
+# Save the merged data to an Excel file
+output_excel_file = "merged_excel.xlsx"
+merged_data.to_excel(output_excel_file, index=False)
+
+print(f"All CSV files have been merged into '{output_excel_file}' successfully in a single sheet.")
+
