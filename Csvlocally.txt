@@ -8,3 +8,22 @@ if (csvFile.exists()) {
 } else {
     return ["File not found"]
 }
+#######
+// Get the workspace environment variable
+def workspace = build.getEnvVars()['WORKSPACE']
+
+// Path to the CSV file in the workspace
+def csvFile = new File("${workspace}/data.csv")
+
+if (csvFile.exists()) {
+    // Read the file line by line
+    def lines = csvFile.readLines()
+
+    // Skip the header (first line) and return the first column values
+    return lines.tail().collect { line -> 
+        def columns = line.split(",") // Adjust the delimiter if needed
+        return columns[0] // Return the first column
+    }
+} else {
+    return ["CSV file not found"]
+}
