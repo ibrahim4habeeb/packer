@@ -1,0 +1,10 @@
+import groovy.csv.CsvParser
+
+def csvFile = new File('/path/to/your.csv') // Adjust the path
+if (csvFile.exists()) {
+    def csvContent = csvFile.text
+    def csvReader = new CsvParser().parseText(csvContent)
+    return csvReader.collect { row -> row[0] } // Return the first column values as choices
+} else {
+    return ["File not found"]
+}
