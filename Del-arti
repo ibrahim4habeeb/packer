@@ -203,3 +203,102 @@ pipeline {
         }
     }
 }
+10-12-2024 22:34PM
+pipeline {
+    agent any
+    parameters {
+        string(name: 'ENTERDIR', defaultValue: '', description: 'Comma-separated list of directories (e.g., dir1,dir2,dir3)')
+        string(name: 'ENTERENV', defaultValue: '', description: 'Enter the environment name')
+        string(name: 'ENTERUSAGE', defaultValue: '', description: 'Enter the usage description')
+        string(name: 'ENTERJENKINSNAME', defaultValue: '', description: 'Enter the Jenkins job name')
+    }
+    environment {
+        DIRFILE = 'dir_list.txt'
+    }
+    stages {
+        stage('Validate Input and Prepare Directory File') {
+            steps {
+                script {
+                    // Validate ENTERDIR
+                    if (!params.ENTERDIR?.trim()) {
+                        error "Parameter ENTERDIR is empty. Please provide a comma-separated list of directories."
+                    }
+
+                    // Write the comma-separated values into a file
+                    sh """
+                        echo "${params.ENTERDIR}" | tr ',' '\\n' > ${DIRFILE}
+                        echo "Directories to process:"
+                        cat ${DIRFILE}
+                    """
+                }
+            }
+        }
+        stage('Validate and Copy Directories to Timestamped Destination') {
+            steps {
+                script {
+                    sh """
+                        TIMESTAMP=\$(date +%Y%m%d%H%M%S)
+                        while read -r dir; do
+                            if [ -z "\$dir" ]; then
+                                echo "Empty directory name found, skipping."
+                                continue
+                            fi
+
+                            echo "Processing directory: \$dir"
+                            SOURCE_URL="https://ur-sa-url/arti/${params.ENTERENV}/\$dir"
+                            DEST_URL="https://ur-sa-url/backups/${params.ENTERUSAGE}/${params.ENTERJENKINSNAME}/\$dir/\$TIMESTAMP"
+
+                            # Copy the directory
+                            echo "Copying from \$SOURCE_URL to \$DEST_URL"
+                            azcopy cp "\$SOURCE_URL" "\$DEST_URL" --recursive=true
+                            if [ \$? -ne 0 ]; then
+                                echo "Copy operation failed for directory: \$dir"
+                                exit 1
+                            fi
+
+                            # Verify the copy
+                            echo "Verifying copy for \$dir"
+                            azcopy list "\$DEST_URL" --recursive=true
+                            if [ \$? -ne 0 ]; then
+                                echo "Verification failed for directory: \$dir"
+                                exit 1
+                            fi
+                        done < ${DIRFILE}
+                    """
+                }
+            }
+        }
+        stage('Delete Source Directories') {
+            steps {
+                script {
+                    sh """
+                        while read -r dir; do
+                            if [ -z "\$dir" ]; then
+                                echo "Empty directory name found, skipping."
+                                continue
+                            fi
+
+                            echo "Deleting source directory: \$dir"
+                            SOURCE_URL="https://ur-sa-url/arti/${params.ENTERENV}/\$dir"
+
+                            # Delete the source directory
+                            azcopy remove "\$SOURCE_URL" --recursive=true
+                            if [ \$? -ne 0 ]; then
+                                echo "Delete operation failed for directory: \$dir"
+                                exit 1
+                            fi
+                        done < ${DIRFILE}
+                    """
+                }
+            }
+        }
+    }
+    post {
+        always {
+            echo "Pipeline execution completed."
+        }
+        failure {
+            echo "Pipeline failed. Check the logs for details."
+        }
+    }
+}
