@@ -697,3 +697,52 @@ pipeline {
         }
     }
 }
+
+only stage. not looping 
+stage('Copy Directories') {
+    steps {
+        script {
+            sh """
+                # Debug: Check contents of dir_list.txt
+                echo "Contents of dir_list.txt:"
+                cat ${DIRFILE}
+
+                # Read and process each directory from the file
+                while IFS= read -r dir || [ -n "\$dir" ]; do
+                    if [ -z "\$dir" ]; then
+                        echo "Empty directory name found, skipping."
+                        continue
+                    fi
+
+                    echo "Processing directory: \$dir"
+
+                    # Define source and destination URLs
+                    SOURCE_URL="https://ur-sa-url/arti/${params.ENTERENV}/\$dir"
+                    DEST_URL="https://ur-sa-url/backups/${params.ENTERUSAGE}/${params.ENTERJENKINSNAME}/${TIMESTAMP}/\$dir"
+
+                    # Copy the directory
+                    echo "Copying from \$SOURCE_URL to \$DEST_URL"
+                    azcopy cp "\$SOURCE_URL" "\$DEST_URL" --recursive=true
+                    copy_status=\$?
+
+                    if [ \$copy_status -ne 0 ]; then
+                        echo "ERROR: Copy operation failed for \$dir. Skipping."
+                        continue
+                    fi
+
+                    # Verify the copy
+                    echo "Verifying copy for directory: \$dir"
+                    azcopy list "\$DEST_URL" --recursive=true
+                    verify_status=\$?
+
+                    if [ \$verify_status -ne 0 ]; then
+                        echo "ERROR: Verification failed for \$dir. Skipping."
+                        continue
+                    fi
+
+                    echo "Copy and verification successful for \$dir"
+                done < ${DIRFILE}
+            """
+        }
+    }
+}
