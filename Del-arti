@@ -746,3 +746,114 @@ stage('Copy Directories') {
         }
     }
 }
+
+
+For loop not while 
+pipeline {
+    agent any
+    environment {
+        TIMESTAMP = sh(script: "date +%Y%m%d%H%M%S", returnStdout: true).trim()
+        DIRFILE = "dir_list.txt"
+    }
+    parameters {
+        string(name: 'ENTERDIR', defaultValue: 'dir1,dir2', description: 'Comma-separated directories')
+        string(name: 'ENTERENV', defaultValue: 'dev', description: 'Environment name')
+        string(name: 'ENTERUSAGE', defaultValue: 'backup', description: 'Usage name')
+        string(name: 'ENTERJENKINSNAME', defaultValue: 'jenkins', description: 'Jenkins name')
+    }
+    stages {
+        stage('Prepare Directory List') {
+            steps {
+                script {
+                    // Save the ENTERDIR parameter as a new line-separated file
+                    sh """
+                        echo '${params.ENTERDIR}' | tr ',' '\\n' > ${DIRFILE}
+                        echo "Directory list prepared:"
+                        cat ${DIRFILE}
+                    """
+                }
+            }
+        }
+        stage('Copy Directories') {
+            steps {
+                script {
+                    sh """
+                        echo "Contents of dir_list.txt:"
+                        cat ${DIRFILE}
+
+                        for dir in \$(cat ${DIRFILE}); do
+                            if [ -z "\$dir" ]; then
+                                echo "Empty directory name found, skipping."
+                                continue
+                            fi
+
+                            echo "Processing directory: \$dir"
+
+                            SOURCE_URL="https://ur-sa-url/arti/${params.ENTERENV}/\$dir"
+                            DEST_URL="https://ur-sa-url/backups/${params.ENTERUSAGE}/${params.ENTERJENKINSNAME}/${TIMESTAMP}/\$dir"
+
+                            echo "Copying from \$SOURCE_URL to \$DEST_URL"
+                            azcopy cp "\$SOURCE_URL" "\$DEST_URL" --recursive=true
+                            copy_status=\$?
+
+                            if [ \$copy_status -ne 0 ]; then
+                                echo "ERROR: Copy operation failed for \$dir. Skipping."
+                                continue
+                            fi
+
+                            echo "Verifying copy for directory: \$dir"
+                            azcopy list "\$DEST_URL" --recursive=true
+                            verify_status=\$?
+
+                            if [ \$verify_status -ne 0 ]; then
+                                echo "ERROR: Verification failed for \$dir. Skipping."
+                                continue
+                            fi
+
+                            echo "Copy and verification successful for \$dir"
+                        done
+                    """
+                }
+            }
+        }
+        stage('Delete Source Directories') {
+            steps {
+                script {
+                    sh """
+                        for dir in \$(cat ${DIRFILE}); do
+                            if [ -z "\$dir" ]; then
+                                echo "Empty directory name found, skipping."
+                                continue
+                            fi
+
+                            echo "Deleting directory: \$dir"
+
+                            SOURCE_URL="https://ur-sa-url/arti/${params.ENTERENV}/\$dir"
+                            echo "Deleting \$SOURCE_URL"
+                            azcopy remove "\$SOURCE_URL" --recursive=true
+                            delete_status=\$?
+
+                            if [ \$delete_status -ne 0 ]; then
+                                echo "ERROR: Delete operation failed for \$dir. Skipping."
+                                continue
+                            fi
+
+                            echo "Delete successful for \$dir"
+                        done
+                    """
+                }
+            }
+        }
+    }
+    post {
+        always {
+            echo "Pipeline execution completed."
+        }
+        success {
+            echo "Pipeline executed successfully."
+        }
+        failure {
+            echo "Pipeline failed. Check the logs for details."
+        }
+    }
+}
