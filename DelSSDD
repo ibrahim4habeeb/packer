@@ -1,0 +1,41 @@
+pipeline {
+    agent any
+    environment {
+        DDFILE = 'dd.txt' // Path to the file containing data disk names
+    }
+    parameters {
+        string(name: 'SOURCE_RG', defaultValue: 'source-resource-group', description: 'Source Resource Group Name')
+        string(name: 'TARGET_RG', defaultValue: 'target-resource-group', description: 'Target Resource Group Name')
+    }
+    stages {
+        stage('Move Azure Data Disks') {
+            steps {
+                script {
+                    // Ensure the file exists
+                    if (!fileExists(env.DDFILE)) {
+                        error "Disk file (${env.DDFILE}) not found!"
+                    }
+
+                    // Read the disk names from the file
+                    def diskNames = readFile(env.DDFILE).readLines()
+
+                    // Iterate over each disk and move it
+                    diskNames.each { diskName ->
+                        sh """
+                        #!/bin/bash
+                        echo "Fetching ID for disk: ${diskName}"
+                        DISK_ID=\$(az disk show --name ${diskName} --resource-group ${params.SOURCE_RG} --query "id" -o tsv)
+                        
+                        if [ -n "\$DISK_ID" ]; then
+                            echo "Moving disk: ${diskName} to resource group: ${params.TARGET_RG}"
+                            az resource move --ids \$DISK_ID --destination-group ${params.TARGET_RG}
+                        else
+                            echo "Disk ID not found for disk: ${diskName}"
+                        fi
+                        """
+                    }
+                }
+            }
+        }
+    }
+}
