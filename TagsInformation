@@ -1,0 +1,147 @@
+
+pipeline {
+    agent any
+    environment {
+        DDFILE = 'dd.txt' // File containing Data Disk names
+        SNAPSHOT_FILE = 'snapshots.txt' // File containing Snapshot names
+        ADDITIONAL_TAGS = 'Environment=Production,Owner=Jenkins' // Custom tags for target RG
+    }
+    parameters {
+        string(name: 'SOURCE_RG', defaultValue: 'source-resource-group', description: 'Source Resource Group Name')
+        string(name: 'TARGET_RG', defaultValue: 'target-resource-group', description: 'Target Resource Group Name')
+    }
+    stages {
+        stage('Validate Inputs') {
+            steps {
+                script {
+                    def hasDataDisks = fileExists(env.DDFILE) && readFile(env.DDFILE).readLines().findAll { it?.trim() }.size() > 0
+                    def hasSnapshots = fileExists(env.SNAPSHOT_FILE) && readFile(env.SNAPSHOT_FILE).readLines().findAll { it?.trim() }.size() > 0
+
+                    if (!hasDataDisks && !hasSnapshots) {
+                        error "Both Data Disk file (${env.DDFILE}) and Snapshot file (${env.SNAPSHOT_FILE}) are either missing or contain no valid entries!"
+                    }
+                }
+            }
+        }
+
+        stage('Move Resources') {
+            parallel {
+                stage('Move Azure Data Disks') {
+                    when {
+                        expression { fileExists(env.DDFILE) && readFile(env.DDFILE).readLines().findAll { it?.trim() }.size() > 0 }
+                    }
+                    steps {
+                        input {
+                            message "Do you want to proceed with moving Azure Data Disks listed in ${env.DDFILE}?"
+                            ok "Approve Move"
+                        }
+                        script {
+                            def diskNames = readFile(env.DDFILE).readLines().findAll { it?.trim() }
+                            diskNames.each { diskName ->
+                                sh """
+                                #!/bin/bash
+                                echo "Fetching details for data disk: ${diskName}"
+                                DISK_ID=\$(az disk show --name ${diskName} --resource-group ${params.SOURCE_RG} --query "id" -o tsv)
+                                DISK_TAGS=\$(az disk show --name ${diskName} --resource-group ${params.SOURCE_RG} --query "tags" -o json)
+                                
+                                if [ -n "\$DISK_ID" ]; then
+                                    echo "Moving disk: ${diskName} to ${params.TARGET_RG}"
+                                    az resource move --ids \$DISK_ID --destination-group ${params.TARGET_RG}
+
+                                    echo "Updating tags for disk: ${diskName} in target resource group"
+                                    COMBINED_TAGS=\$(echo "\$DISK_TAGS" | jq -c --argjson additional '{${env.ADDITIONAL_TAGS}}' '. + \$additional')
+                                    az disk update --name ${diskName} --resource-group ${params.TARGET_RG} --tags "\$COMBINED_TAGS"
+                                else
+                                    echo "Data disk ID not found for ${diskName}"
+                                fi
+                                """
+                            }
+                        }
+                    }
+                }
+
+                stage('Move Azure Snapshots') {
+                    when {
+                        expression { fileExists(env.SNAPSHOT_FILE) && readFile(env.SNAPSHOT_FILE).readLines().findAll { it?.trim() }.size() > 0 }
+                    }
+                    steps {
+                        input {
+                            message "Do you want to proceed with moving Azure Snapshots listed in ${env.SNAPSHOT_FILE}?"
+                            ok "Approve Move"
+                        }
+                        script {
+                            def snapshotNames = readFile(env.SNAPSHOT_FILE).readLines().findAll { it?.trim() }
+                            snapshotNames.each { snapshotName ->
+                                sh """
+                                #!/bin/bash
+                                echo "Fetching details for snapshot: ${snapshotName}"
+                                SNAPSHOT_ID=\$(az snapshot show --name ${snapshotName} --resource-group ${params.SOURCE_RG} --query "id" -o tsv)
+                                SNAPSHOT_TAGS=\$(az snapshot show --name ${snapshotName} --resource-group ${params.SOURCE_RG} --query "tags" -o json)
+
+                                if [ -n "\$SNAPSHOT_ID" ]; then
+                                    echo "Moving snapshot: ${snapshotName} to ${params.TARGET_RG}"
+                                    az resource move --ids \$SNAPSHOT_ID --destination-group ${params.TARGET_RG}
+
+                                    echo "Updating tags for snapshot: ${snapshotName} in target resource group"
+                                    COMBINED_TAGS=\$(echo "\$SNAPSHOT_TAGS" | jq -c --argjson additional '{${env.ADDITIONAL_TAGS}}' '. + \$additional')
+                                    az snapshot update --name ${snapshotName} --resource-group ${params.TARGET_RG} --tags "\$COMBINED_TAGS"
+                                else
+                                    echo "Snapshot ID not found for ${snapshotName}"
+                                fi
+                                """
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Delete Resources') {
+            parallel {
+                stage('Delete Azure Data Disks') {
+                    when {
+                        expression { fileExists(env.DDFILE) && readFile(env.DDFILE).readLines().findAll { it?.trim() }.size() > 0 }
+                    }
+                    steps {
+                        input {
+                            message "Do you want to proceed with deleting Azure Data Disks listed in ${env.DDFILE}?"
+                            ok "Approve Delete"
+                        }
+                        script {
+                            def diskNames = readFile(env.DDFILE).readLines().findAll { it?.trim() }
+                            diskNames.each { diskName ->
+                                sh """
+                                #!/bin/bash
+                                echo "Deleting data disk: ${diskName}"
+                                az disk delete --name ${diskName} --resource-group ${params.TARGET_RG} --yes
+                                """
+                            }
+                        }
+                    }
+                }
+
+                stage('Delete Azure Snapshots') {
+                    when {
+                        expression { fileExists(env.SNAPSHOT_FILE) && readFile(env.SNAPSHOT_FILE).readLines().findAll { it?.trim() }.size() > 0 }
+                    }
+                    steps {
+                        input {
+                            message "Do you want to proceed with deleting Azure Snapshots listed in ${env.SNAPSHOT_FILE}?"
+                            ok "Approve Delete"
+                        }
+                        script {
+                            def snapshotNames = readFile(env.SNAPSHOT_FILE).readLines().findAll { it?.trim() }
+                            snapshotNames.each { snapshotName ->
+                                sh """
+                                #!/bin/bash
+                                echo "Deleting snapshot: ${snapshotName}"
+                                az snapshot delete --name ${snapshotName} --resource-group ${params.TARGET_RG} --yes
+                                """
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
