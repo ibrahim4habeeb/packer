@@ -385,3 +385,25 @@ pipeline {
         }
     }
 }
+datdisk block
+#!/bin/bash
+echo "Fetching existing tags for data disk: ${diskName}"
+DISK_TAGS=$(az disk show --name ${diskName} --resource-group ${params.SOURCE_RG} --query "tags" -o json || echo '{}')
+
+# Define additional tags to be added
+ADDITIONAL_TAGS="Environment=Production,Owner=Jenkins"
+
+# Ensure ADDITIONAL_TAGS is a valid string
+if [[ -z "${ADDITIONAL_TAGS}" ]]; then
+    echo "Error: ADDITIONAL_TAGS is empty."
+    exit 1
+fi
+
+# Convert additional tags into JSON format
+NEW_TAGS_JSON=$(echo "${ADDITIONAL_TAGS}" | jq -nR '[split(",") | map(split("=")) | map({(.[0]): .[1]})] | add')
+
+# Merge existing tags with additional tags
+COMBINED_TAGS=$(echo "${DISK_TAGS}" | jq -c --argjson newtags "${NEW_TAGS_JSON}" '. + $newtags')
+
+echo "Updating tags for data disk: ${diskName}"
+az disk update --name ${diskName} --resource-group ${params.SOURCE_RG} --tags "${COMBINED_TAGS}"
