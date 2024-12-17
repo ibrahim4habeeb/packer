@@ -145,3 +145,18 @@ pipeline {
         }
     }
 }
+Invalid jq invalid json text passed to --argjson
+DISK_TAGS=\$(az disk show --name ${diskName} --resource-group ${params.SOURCE_RG} --query "tags" -o json || echo '{}')
+COMBINED_TAGS=\$(echo "\$DISK_TAGS" | jq -c --arg newtags "Environment=Production,Owner=Jenkins" '
+    . + ([$newtags | split(",") | map(split("=")) | map({(.[0]): .[1]})] | add)
+')
+
+echo "Updating tags for data disk: ${diskName}"
+az disk update --name ${diskName} --resource-group ${params.TARGET_RG} --tags "\$COMBINED_TAGS"
+SNAPSHOT_TAGS=\$(az snapshot show --name ${snapshotName} --resource-group ${params.SOURCE_RG} --query "tags" -o json || echo '{}')
+COMBINED_TAGS=\$(echo "\$SNAPSHOT_TAGS" | jq -c --arg newtags "Environment=Production,Owner=Jenkins" '
+    . + ([$newtags | split(",") | map(split("=")) | map({(.[0]): .[1]})] | add)
+')
+
+echo "Updating tags for snapshot: ${snapshotName}"
+az snapshot update --name ${snapshotName} --resource-group ${params.TARGET_RG} --tags "\$COMBINED_TAGS"
