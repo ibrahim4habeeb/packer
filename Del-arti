@@ -952,3 +952,48 @@ pipeline {
         }
     }
 }
+tags information
+pipeline {
+    agent any
+    environment {
+        DDFILE = 'dd.txt' // File with data disk names
+        SNAPSHOT_FILE = 'snapshots.txt' // File with snapshot names
+        ADDITIONAL_TAGS = 'Environment=Production Project=Migration' // New tags to add
+    }
+    parameters {
+        string(name: 'SOURCE_RG', defaultValue: 'source-resource-group', description: 'Source Resource Group Name')
+        string(name: 'TARGET_RG', defaultValue: 'target-resource-group', description: 'Target Resource Group Name')
+    }
+    stages {
+        stage('Move Resources with Tags') {
+            parallel {
+                stage('Move Azure Data Disks with Tags') {
+                    when {
+                        expression { fileExists(env.DDFILE) && readFile(env.DDFILE).readLines().findAll { it?.trim() }.size() > 0 }
+                    }
+                    steps {
+                        input {
+                            message "Do you want to proceed with moving Azure Data Disks and updating tags?"
+                            ok "Approve Move"
+                        }
+                        script {
+                            def diskNames = readFile(env.DDFILE).readLines().findAll { it?.trim() }
+
+                            diskNames.each { diskName ->
+                                sh """
+                                #!/bin/bash
+                                echo "Fetching tags and ID for data disk: ${diskName}"
+                                
+                                # Fetch Disk ID
+                                DISK_ID=\$(az disk show --name ${diskName} --resource-group ${params.SOURCE_RG} --query "id" -o tsv)
+
+                                # Fetch Existing Tags in JSON
+                                EXISTING_TAGS_JSON=\$(az disk show --name ${diskName} --resource-group ${params.SOURCE_RG} --query "tags" -o json)
+
+                                if [ -n "\$DISK_ID" ]; then
+                                    echo "Moving data disk: ${diskName} to resource group: ${params.TARGET_RG}"
+                                    az resource move --ids \$DISK_ID --destination-group ${params.TARGET_RG}
+
+                                    # Prepare Combined Tags
+                                    if [ "\$EXISTING_TAGS_JSON" != "null" ]; then
+                                        EXISTING_TAGS=\$(echo \$EXISTING_TAGS_JSON | jq -r 'to_entries | map("
