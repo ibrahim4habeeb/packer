@@ -304,3 +304,84 @@ pipeline {
         }
     }
 }
+#######################
+pipeline {
+    agent any
+    environment {
+        DDFILE = 'dd.txt' // Path to the file containing data disk names
+        SNAPSHOT_FILE = 'snapshots.txt' // Path to the file containing snapshot names
+    }
+    parameters {
+        string(name: 'SOURCE_RG', defaultValue: 'source-resource-group', description: 'Source Resource Group Name')
+        string(name: 'TARGET_RG', defaultValue: 'target-resource-group', description: 'Target Resource Group Name')
+    }
+    stages {
+        stage("Move Azure Data Disks with Tags") {
+            when {
+                expression { fileExists(env.DDFILE) && readFile(env.DDFILE).readLines().findAll { it?.trim() }.size() > 0 }
+            }
+            steps {
+                script {
+                    def diskNames = readFile(env.DDFILE).readLines().findAll { it?.trim() }
+
+                    diskNames.each { diskName ->
+                        sh """
+                        #!/bin/bash
+                        echo "Fetching existing tags for data disk: ${diskName}"
+                        DISK_TAGS=\$(az disk show --name ${diskName} --resource-group ${params.SOURCE_RG} --query "tags" -o json || echo '{}')
+
+                        # Define additional tags to be added
+                        ADDITIONAL_TAGS="Environment=Production,Owner=Jenkins"
+                        
+                        # Convert additional tags into JSON format
+                        NEW_TAGS_JSON=\$(echo \"\$ADDITIONAL_TAGS\" | jq -nR '[split(",") | map(split("=")) | map({(.[0]): .[1]})] | add')
+
+                        # Merge existing tags with additional tags
+                        COMBINED_TAGS=\$(echo "\$DISK_TAGS" | jq -c --argjson newtags "\$NEW_TAGS_JSON" '. + \$newtags')
+
+                        echo "Updating tags for data disk: ${diskName}"
+                        az disk update --name ${diskName} --resource-group ${params.SOURCE_RG} --tags "\$COMBINED_TAGS"
+
+                        echo "Moving data disk: ${diskName} to resource group: ${params.TARGET_RG}"
+                        az resource move --ids \$(az disk show --name ${diskName} --resource-group ${params.SOURCE_RG} --query id -o tsv) --destination-group ${params.TARGET_RG}
+                        """
+                    }
+                }
+            }
+        }
+
+        stage("Move Azure Snapshots with Tags") {
+            when {
+                expression { fileExists(env.SNAPSHOT_FILE) && readFile(env.SNAPSHOT_FILE).readLines().findAll { it?.trim() }.size() > 0 }
+            }
+            steps {
+                script {
+                    def snapshotNames = readFile(env.SNAPSHOT_FILE).readLines().findAll { it?.trim() }
+
+                    snapshotNames.each { snapshotName ->
+                        sh """
+                        #!/bin/bash
+                        echo "Fetching existing tags for snapshot: ${snapshotName}"
+                        SNAPSHOT_TAGS=\$(az snapshot show --name ${snapshotName} --resource-group ${params.SOURCE_RG} --query "tags" -o json || echo '{}')
+
+                        # Define additional tags to be added
+                        ADDITIONAL_TAGS="Environment=Production,Owner=Jenkins"
+
+                        # Convert additional tags into JSON format
+                        NEW_TAGS_JSON=\$(echo \"\$ADDITIONAL_TAGS\" | jq -nR '[split(",") | map(split("=")) | map({(.[0]): .[1]})] | add')
+
+                        # Merge existing tags with additional tags
+                        COMBINED_TAGS=\$(echo "\$SNAPSHOT_TAGS" | jq -c --argjson newtags "\$NEW_TAGS_JSON" '. + \$newtags')
+
+                        echo "Updating tags for snapshot: ${snapshotName}"
+                        az snapshot update --name ${snapshotName} --resource-group ${params.SOURCE_RG} --tags "\$COMBINED_TAGS"
+
+                        echo "Moving snapshot: ${snapshotName} to resource group: ${params.TARGET_RG}"
+                        az resource move --ids \$(az snapshot show --name ${snapshotName} --resource-group ${params.SOURCE_RG} --query id -o tsv) --destination-group ${params.TARGET_RG}
+                        """
+                    }
+                }
+            }
+        }
+    }
+}
