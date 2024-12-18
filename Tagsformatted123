@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# Input JSON as a string
+TAGS='{
+  "abc2": "abc1",
+  "abc3": "abc4"
+}'
+
+# Convert JSON to "key"="value" format
+FORMATTED_TAGS=$(echo "$TAGS" | jq -r 'to_entries | map("\"" + .key + "\"=\"" + .value + "\"") | join(" ")')
+
+# Output the formatted tags
+echo "$FORMATTED_TAGS"
