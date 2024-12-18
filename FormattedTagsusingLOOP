@@ -1,0 +1,21 @@
+// Define the disk name and resource group
+def diskName = "your-disk-name"         // Replace with your disk name
+def sourceRG = "your-resource-group"   // Replace with your resource group
+
+// Fetch the tags JSON using az CLI
+def tagsJson = "az disk show --name ${diskName} --resource-group ${sourceRG} --query tags -o json".execute().text.trim()
+
+// Parse the JSON into a Map
+def tagsMap = new groovy.json.JsonSlurper().parseText(tagsJson)
+
+// Initialize an empty list for formatted tags
+def formattedTags = []
+
+// Loop through the map and format each key-value pair as "key=value"
+tagsMap.each { key, value ->
+    formattedTags << "${key}=${value}"
+}
+
+// Join the formatted tags with a space and output the result
+def formattedTagsString = formattedTags.join(" ")
+println formattedTagsString
