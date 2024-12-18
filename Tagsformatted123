@@ -162,3 +162,65 @@ pipeline {
         }
     }
 }
+
+what evere between double quotes 
+response 1
+pipeline {
+    agent any
+    stages {
+        stage('Format Tags') {
+            steps {
+                script {
+                    sh '''
+                    #!/bin/bash
+
+                    # Fetch tags from Azure using az CLI
+                    TAGS=$(az disk show --name "${diskName}" --resource-group "${params.SOURCE_RG}" --query "tags" -o json)
+
+                    # Check if the tags are empty or null
+                    if [ -z "$TAGS" ] || [ "$TAGS" == "null" ]; then
+                        echo "No tags found."
+                        exit 0
+                    fi
+
+                    # Convert JSON to key=value format
+                    FORMATTED_TAGS=$(echo "$TAGS" | jq -r 'to_entries | map("\"" + .key + "\"=\"" + .value + "\"") | join(" ")')
+
+                    # Output the formatted tags
+                    echo "Formatted Tags: $FORMATTED_TAGS"
+                    '''
+                }
+            }
+        }
+    }
+}
+response 2
+pipeline {
+    agent any
+    stages {
+        stage('Format Tags') {
+            steps {
+                script {
+                    sh '''
+                    #!/bin/bash
+
+                    # Fetch tags from Azure using az CLI
+                    TAGS=$(az disk show --name "${diskName}" --resource-group "${params.SOURCE_RG}" --query "tags" -o json)
+
+                    # Validate if tags are fetched properly
+                    if [ -z "$TAGS" ] || [ "$TAGS" == "null" ]; then
+                        echo "No tags found."
+                        exit 0
+                    fi
+
+                    # Convert JSON to key=value format
+                    FORMATTED_TAGS=$(echo "$TAGS" | jq -r 'to_entries | map(.key + "=" + (.value | tostring)) | join(" ")')
+
+                    # Output the formatted tags
+                    echo "Formatted Tags: $FORMATTED_TAGS"
+                    '''
+                }
+            }
+        }
+    }
+}
