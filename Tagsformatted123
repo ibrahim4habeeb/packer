@@ -11,3 +11,26 @@ FORMATTED_TAGS=$(echo "$TAGS" | jq -r 'to_entries | map("\"" + .key + "\"=\"" + 
 
 # Output the formatted tags
 echo "$FORMATTED_TAGS"
+pipeline {
+    agent any
+    stages {
+        stage('Format Tags') {
+            steps {
+                script {
+                    sh """
+                    #!/bin/bash
+                    TAGS='{
+                    "abc2": "abc1",
+                    "abc3": "abc4"
+                    }'
+
+                    # Remove braces and format into key=value pairs
+                    FORMATTED_TAGS=$(echo "$TAGS" | tr -d '{}' | sed 's/,//g' | awk -F':' '{gsub(/"/, "", $1); gsub(/"/, "", $2); print "\"" $1 "\"=\"" $2 "\""}' | tr '\\n' ' ')
+                    
+                    echo "Formatted Tags: \$FORMATTED_TAGS"
+                    """
+                }
+            }
+        }
+    }
+}
