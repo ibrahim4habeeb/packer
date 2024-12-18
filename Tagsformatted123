@@ -107,3 +107,28 @@ pipeline {
         }
     }
 }
+
+escape character issue in jq
+pipeline {
+    agent any
+    stages {
+        stage('Format Tags') {
+            steps {
+                script {
+                    sh """
+                    #!/bin/bash
+
+                    # Fetch tags from Azure using az CLI
+                    TAGS=\$(az disk show --name ${diskName} --resource-group ${params.SOURCE_RG} --query "tags" -o json)
+
+                    # Convert JSON to the desired format (key=value)
+                    FORMATTED_TAGS=\$(echo "\$TAGS" | jq -r 'to_entries | map(.key + "=" + .value | gsub("\\\\""; "")) | join(" ")')
+
+                    # Output the formatted tags
+                    echo "Formatted Tags: \$FORMATTED_TAGS"
+                    """
+                }
+            }
+        }
+    }
+}
