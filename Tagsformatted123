@@ -376,3 +376,42 @@ pipeline {
         }
     }
 }
+using Loop for formated tagging
+pipeline {
+    agent any
+    stages {
+        stage('Format Tags') {
+            steps {
+                script {
+                    sh '''
+                    #!/bin/bash
+
+                    # Fetch tags from Azure using az CLI
+                    TAGS=$(az disk show --name "$diskName" --resource-group "$SOURCE_RG" --query "tags" -o json)
+
+                    # Check if the tags are empty or null
+                    if [ -z "$TAGS" ] || [ "$TAGS" == "null" ]; then
+                        echo "No tags found."
+                        exit 0
+                    fi
+
+                    # Initialize the formatted tags variable
+                    FORMATTED_TAGS=""
+
+                    # Loop through each key-value pair
+                    for key in $(echo "$TAGS" | jq -r 'keys[]'); do
+                        value=$(echo "$TAGS" | jq -r --arg key "$key" '.[$key]')
+                        FORMATTED_TAGS+="$key=$value "
+                    done
+
+                    # Trim trailing space
+                    FORMATTED_TAGS=$(echo "$FORMATTED_TAGS" | sed 's/[[:space:]]*$//')
+
+                    # Output the formatted tags
+                    echo "Formatted Tags: $FORMATTED_TAGS"
+                    '''
+                }
+            }
+        }
+    }
+}
