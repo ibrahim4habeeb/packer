@@ -128,3 +128,39 @@ pipeline {
         }
     }
 }
+pipeline {
+    agent any
+
+    stages {
+        stage('Process Tags') {
+            steps {
+                script {
+                    sh """
+                    #!/bin/bash
+
+                    # Fetch the tags JSON from Azure
+                    TAGS=\$(az disk show --name ${diskName} --resource-group ${sourceRG} --query "tags" -o json)
+
+                    # Check if TAGS is empty
+                    if [ -z "\$TAGS" ]; then
+                        echo "No tags found."
+                        exit 1
+                    fi
+
+                    # Parse and format tags using a for loop
+                    FORMATTED_TAGS=""
+                    for key in \$(echo "\$TAGS" | jq -r 'keys[]'); do
+                        value=\$(echo "\$TAGS" | jq -r ".\$key")
+                        echo "key=\$key"
+                        echo "value=\$value"
+                        FORMATTED_TAGS+='"'\$key=\$value'" '
+                    done
+
+                    # Output the formatted tags
+                    echo "Formatted Tags: \$FORMATTED_TAGS"
+                    """
+                }
+            }
+        }
+    }
+}
