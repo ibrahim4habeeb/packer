@@ -1,4 +1,51 @@
+stages {
+    stage('Process Tags') {
+        steps {
+            script {
+                sh """
+                #!/bin/bash
 
+                # Fetch the tags JSON from Azure
+                TAGS=\$(az disk show --name ${diskName} --resource-group ${sourceRG} --query "tags" -o json)
+
+                # Check if TAGS is empty
+                if [ -z "\$TAGS" ]; then
+                    echo "No tags found."
+                    exit 1
+                fi
+
+                # Parse and format tags using a loop
+                FORMATTED_TAGS=""
+                for key in \$(echo "\$TAGS" | jq -r 'keys[]'); do
+                    value=\$(echo "\$TAGS" | jq -r ".\$key")
+                    
+                    # Check if the value contains spaces or parentheses (special characters)
+                    if [[ "\$value" =~ [[:space:]]|\(|\) ]]; then
+                        # Enclose value in single quotes if it contains special characters
+                        value="'\$value'"
+                    fi
+                    
+                    # Add formatted tag to the final string in key=value format
+                    FORMATTED_TAGS+="\${key}=\${value} "
+                done
+
+                # Output the formatted tags in key=value format
+                echo "Formatted Tags: \$FORMATTED_TAGS"
+
+                # Create the snapshot using the formatted tags
+                az snapshot create \
+                  -g ${resourceGroupName} \
+                  --name ${snapshotName} \
+                  --source ${diskResourceID} \
+                  --tags \$FORMATTED_TAGS
+                """
+            }
+        }
+    }
+}
+
+
+=====================================================================================================
 value=\$(echo "\$value" | sed 's/ /\\ /g' | sed 's/(/\\(/g' | sed 's/)/\\)/g')
 ########################################################
 // Define the disk name and resource group
