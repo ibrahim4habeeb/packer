@@ -1,3 +1,6 @@
+
+value=\$(echo "\$value" | sed 's/ /\\ /g' | sed 's/(/\\(/g' | sed 's/)/\\)/g')
+########################################################
 // Define the disk name and resource group
 def diskName = "your-disk-name"         // Replace with your disk name
 def sourceRG = "your-resource-group"   // Replace with your resource group
