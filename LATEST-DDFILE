@@ -1487,5 +1487,6 @@ pipeline {
     }
 }
 
-
+logic modified
+def escapedValue = value.replaceAll('[()]', '\\\\$0')  // Escaping parentheses
 
