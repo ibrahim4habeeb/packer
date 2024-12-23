@@ -1,0 +1,127 @@
+pipeline {
+    agent any
+
+    environment {
+        // Defining environment variables
+        TIMESTAMP = sh(script: 'date +%Y-%m-%d-%H-%M-%S', returnStdout: true).trim() // Getting the current timestamp
+        DDFILE = 'diskNames.txt'  // File to store disk names
+        SSFILE = 'snapshotNames.txt' // File to store snapshot names
+    }
+
+    parameters {
+        string(name: 'SOURCE_RG', defaultValue: '', description: 'Source Resource Group')
+        string(name: 'TARGET_RG', defaultValue: '', description: 'Target Resource Group')
+        string(name: 'DD_NAME_TO_DELETE', defaultValue: '', description: 'Comma-separated list of disk names to delete')
+        string(name: 'SS_NAME_TO_DELETE', defaultValue: '', description: 'Comma-separated list of snapshot names to delete')
+    }
+
+    stages {
+        stage('List of SS and DD names to delete') {
+            steps {
+                script {
+                    // Split the provided disk and snapshot names by commas and store them in respective files
+                    if (params.DD_NAME_TO_DELETE) {
+                        writeFile(file: DDFILE, text: params.DD_NAME_TO_DELETE)
+                    }
+                    if (params.SS_NAME_TO_DELETE) {
+                        writeFile(file: SSFILE, text: params.SS_NAME_TO_DELETE)
+                    }
+                }
+            }
+        }
+
+        stage('Validate SS and DD availability') {
+            steps {
+                script {
+                    def ddNames = readFile(DDFILE).split(',').collect { it.trim() }
+                    def ssNames = readFile(SSFILE).split(',').collect { it.trim() }
+
+                    // Validate for various cases (empty, both, or individual)
+                    if (ddNames.isEmpty() && ssNames.isEmpty()) {
+                        error "Both DD and SS names are empty. Please provide disk and snapshot names to delete."
+                    } else {
+                        if (!ddNames.isEmpty()) {
+                            echo "Validating Disk Names: ${ddNames.join(', ')}"
+                            ddNames.each { ddName ->
+                                // Check for the availability of each disk (pseudo check here, actual logic will depend on your system)
+                                echo "Validating disk: ${ddName}"
+                            }
+                        }
+                        if (!ssNames.isEmpty()) {
+                            echo "Validating Snapshot Names: ${ssNames.join(', ')}"
+                            ssNames.each { ssName ->
+                                // Check for the availability of each snapshot (pseudo check here, actual logic will depend on your system)
+                                echo "Validating snapshot: ${ssName}"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Login to Azure') {
+            steps {
+                script {
+                    // Azure login using managed identity
+                    echo "Logging into Azure with Managed Identity"
+                    sh 'az login --identity --username ${params.SOURCE_RG}'
+                }
+            }
+        }
+
+        stage('Copying Azure Data Disk') {
+            when {
+                expression {
+                    // Only execute if there are disk names in DDFILE
+                    return fileExists(DDFILE) && readFile(DDFILE).trim()
+                }
+            }
+            steps {
+                script {
+                    def ddNames = readFile(DDFILE).split(',').collect { it.trim() }
+
+                    ddNames.each { ddName ->
+                        try {
+                            echo "Processing disk: ${ddName}"
+
+                            // Get the disk ID and tags using `az disk show`
+                            def diskId = sh(script: "az disk show --name ${ddName} --resource-group ${params.SOURCE_RG} --query id -o tsv", returnStdout: true).trim()
+                            def diskTags = sh(script: "az disk show --name ${ddName} --resource-group ${params.SOURCE_RG} --query tags -o json", returnStdout: true).trim()
+
+                            if (diskId) {
+                                echo "Disk ID: ${diskId}, Tags: ${diskTags}"
+                                
+                                // Create a snapshot using az snapshot create
+                                def snapshotName = "${TIMESTAMP}-${ddName}-snapshot"
+                                sh """
+                                    az snapshot create \
+                                    --resource-group ${params.TARGET_RG} \
+                                    --name ${snapshotName} \
+                                    --source ${diskId} \
+                                    --tags ${diskTags}
+                                """
+                                echo "Snapshot for disk ${ddName} created successfully."
+                            } else {
+                                echo "Disk ${ddName} not found in the source resource group."
+                            }
+                        } catch (Exception e) {
+                            echo "Error occurred while processing disk ${ddName}: ${e.message}"
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Pipeline completed successfully!"
+        }
+        failure {
+            echo "Pipeline failed. Please check the logs for details."
+        }
+        always {
+            cleanWs() // Clean workspace after execution
+        }
+    }
+}
