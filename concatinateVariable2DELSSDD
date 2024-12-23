@@ -1,0 +1,104 @@
+concatinate string variable 
+pipeline {
+    agent any
+
+    environment {
+        DDFILE = "dd_list.txt"
+        SSFILE = "ss_list.txt"
+        TIMESTAMP = sh(script: "date +%Y%m%d%H%M%S", returnStdout: true).trim()  // Generate timestamp
+    }
+
+    parameters {
+        string(name: 'SOURCE_RG', defaultValue: '', description: 'Source Resource Group')
+        string(name: 'TARGET_RG', defaultValue: '', description: 'Target Resource Group')
+        string(name: 'DD_NAME_TO_DELETE', defaultValue: '', description: 'Comma-separated list of disk names to delete')
+        string(name: 'SS_NAME_TO_DELETE', defaultValue: '', description: 'Comma-separated list of snapshot names to delete')
+    }
+
+    stages {
+        stage('List of SS and DD names to delete') {
+            steps {
+                script {
+                    // Prepare the disk and snapshot names with line breaks instead of commas
+                    def ddList = DD_NAME_TO_DELETE.replace(",", "\n")
+                    def ssList = SS_NAME_TO_DELETE.replace(",", "\n")
+
+                    // Use string concatenation to create the shell script
+                    sh '''
+                    #!/bin/bash 
+                    echo '''+ddList+''' > ${DDFILE}
+                    echo "DD list prepared"
+                    cat ${DDFILE}
+                    echo '''+ssList+''' > ${SSFILE}
+                    echo "SS list prepared"
+                    cat ${SSFILE}
+                    '''
+                }
+            }
+        }
+
+        stage('Copying Azure Data Disk') {
+            when {
+                expression {
+                    fileExists(env.DDFILE) && readFile(env.DDFILE).readLines().findAll { it?.trim() }.size() > 0
+                }
+            }
+            steps {
+                script {
+                    try {
+                        // Adding input step to confirm proceeding with disk copying
+                        def approvalDelay = input id: 'Deploy', message: "Do you want to proceed copying ${DD_NAME_TO_DELETE}?", submitter: 'jenkins,admin'
+                        def diskNames = readFile(env.DDFILE).readLines().findAll { it?.trim() }
+
+                        // Loop over each disk name and process
+                        diskNames.each { diskName ->
+                            // Pass each diskName directly to the shell script using string concatenation
+                            sh '''
+                            #!/bin/bash
+                            echo "Fetching ID and tags for data disk '''+diskName+'''"
+                            
+                            # Fetch both Disk ID and tags in JSON format
+                            DISK_INFO=$(az disk show -n '''+diskName+''' -g ${SOURCE_RG} --query "{id: id, tags: tags}" -o json)
+                            
+                            # Extract Disk ID and tags from JSON response
+                            DISK_ID=$(echo $DISK_INFO | jq -r '.id')
+                            DISK_TAGS=$(echo $DISK_INFO | jq -r '.tags')
+
+                            # Print out the Disk ID and tags
+                            echo "Disk ID for '''+diskName+''': $DISK_ID"
+                            echo "Disk tags for '''+diskName+''': $DISK_TAGS"
+
+                            # Prepare the tags for the snapshot command in key=value format
+                            TAGS_FOR_SNAPSHOT=""
+                            if [ "$DISK_TAGS" != "null" ]; then
+                                # Iterate over each tag and format as key=value
+                                for key in $(echo $DISK_TAGS | jq -r 'keys[]'); do
+                                    value=$(echo $DISK_TAGS | jq -r ".\"$key\"")
+                                    TAGS_FOR_SNAPSHOT="$TAGS_FOR_SNAPSHOT$key=$value "
+                                done
+                            fi
+
+                            # Create the snapshot using the Disk ID and formatted tags
+                            az snapshot create \
+                                --resource-group ${TARGET_RG} \
+                                --name ${TIMESTAMP}-''' + diskName + ''' \
+                                --source $DISK_ID \
+                                --tags $TAGS_FOR_SNAPSHOT
+                            '''
+                        }
+                    } catch (Exception e) {
+                        echo "Error during disk copying process: ${e}"
+                    }
+                }
+            }
+        }
+
+        // Additional stages as needed
+    }
+
+    post {
+        always {
+            echo 'Pipeline execution finished.'
+        }
+    }
+}
