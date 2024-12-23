@@ -1307,3 +1307,14 @@ pipeline {
     }
 }
 
+unexpected '('
+
+sh """
+    az snapshot create \
+    --resource-group ${params.TARGET_RG} \
+    --name ${snapshotName} \
+    --source ${diskId} \
+    --tags ${tags.replaceAll('[()]', '\\\\$0')}
+"""
+
+
