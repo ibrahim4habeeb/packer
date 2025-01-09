@@ -56,3 +56,64 @@ pipeline {
         }
     }
 }
+
+
+
+pipeline {
+    agent any
+    parameters {
+        string(name: 'jenkinsRG', defaultValue: '', description: 'Resource Group Name')
+        string(name: 'jenkinsType', defaultValue: '', description: 'Type of Jenkins Resource')
+    }
+    environment {
+        ddname = "disk_list.txt"
+        ssname = "snapshot_list.txt"
+        ddssname = "resources.csv"
+    }
+    stages {
+        stage('List Disks and Snapshots') {
+            steps {
+                script {
+                    echo "Listing Managed Disks and Snapshots in Resource Group: ${params.jenkinsRG}"
+                    sh """
+                    az disk list -g ${params.jenkinsRG} --query "[].{Name:name,LastModified:timeCreated}" -o tsv > "${ddname}"
+                    az snapshot list -g ${params.jenkinsRG} --query "[].{Name:name,LastModified:timeCreated}" -o tsv > "${ssname}"
+                    """
+                    echo "Disk list saved to ${ddname}:"
+                    sh "cat ${ddname}"
+                    echo "Snapshot list saved to ${ssname}:"
+                    sh "cat ${ssname}"
+                }
+            }
+        }
+        stage('Create CSV File') {
+            steps {
+                script {
+                    echo "Creating CSV file with resources and last modified date"
+                    sh """
+                    echo "JenkinsRG,ResourceType,ResourceName,LastModifiedDate" > ${ddssname}
+
+                    if [ -s ${ddname} ]; then
+                        awk -v rg=${params.jenkinsRG} '{print rg",ManagedDisk,"$1","$2}' ${ddname} >> ${ddssname}
+                    else
+                        echo "No disk entries found."
+                    fi
+
+                    if [ -s ${ssname} ]; then
+                        awk -v rg=${params.jenkinsRG} '{print rg",snapshot,"$1","$2}' ${ssname} >> ${ddssname}
+                    else
+                        echo "No snapshot entries found."
+                    fi
+                    """
+                }
+            }
+        }
+    }
+    post {
+        always {
+            echo "Pipeline execution complete. Check the generated CSV: ${ddssname}"
+            sh "cat ${ddssname}"
+            archiveArtifacts artifacts: "${ddssname}", allowEmptyArchive: true
+        }
+    }
+}
