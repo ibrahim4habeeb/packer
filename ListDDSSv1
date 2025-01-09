@@ -1,0 +1,8 @@
+if [ -f "${dd_name}" ]; then
+    IFS=$'\n' read -d '' -r -a disks < "${dd_name}"
+    for i in "${!disks[@]}"; do
+        disks[i]="${disks[i]},ManagedDisk"
+    done
+else
+    disks=()
+fi
