@@ -178,3 +178,66 @@ pipeline {
         }
     }
 }
+÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷÷##
+pipeline {
+    agent any
+    parameters {
+        string(name: 'jenkinsRG', defaultValue: '', description: 'Resource Group Name')
+    }
+    environment {
+        ddname = "disk_list.txt"
+        ssname = "snapshot_list.txt"
+        ddssname = "resources.csv"
+    }
+    stages {
+        stage('List Disks and Snapshots') {
+            steps {
+                script {
+                    echo "Listing Managed Disks and Snapshots in Resource Group: ${params.jenkinsRG}"
+                    sh """
+                    #!/bin/bash
+                    az disk list -g ${params.jenkinsRG} --query "[].{Name:name,LastModified:timeCreated}" -o tsv > "${ddname}"
+                    az snapshot list -g ${params.jenkinsRG} --query "[].{Name:name,LastModified:timeCreated}" -o tsv > "${ssname}"
+                    """
+                }
+            }
+        }
+        stage('Create CSV File') {
+            steps {
+                script {
+                    echo "Creating CSV file with resource details"
+                    sh """
+                    #!/bin/bash
+                    # Write header to the CSV file
+                    echo "JenkinsRG,ResourceType,ResourceName,LastModifiedDate" > ${ddssname}
+
+                    # Process disk list and add to CSV
+                    if [ -s ${ddname} ]; then
+                        while read -r line; do
+                            name=$(echo $line | awk '{print $1}')
+                            lastModified=$(echo $line | awk '{print $2}')
+                            echo "${params.jenkinsRG},ManagedDisk,$name,$lastModified" >> ${ddssname}
+                        done < ${ddname}
+                    fi
+
+                    # Process snapshot list and add to CSV
+                    if [ -s ${ssname} ]; then
+                        while read -r line; do
+                            name=$(echo $line | awk '{print $1}')
+                            lastModified=$(echo $line | awk '{print $2}')
+                            echo "${params.jenkinsRG},snapshot,$name,$lastModified" >> ${ddssname}
+                        done < ${ssname}
+                    fi
+                    """
+                }
+            }
+        }
+    }
+    post {
+        always {
+            echo "Pipeline execution complete. Generated CSV content:"
+            sh "cat ${ddssname}"
+            archiveArtifacts artifacts: "${ddssname}", allowEmptyArchive: true
+        }
+    }
+}
