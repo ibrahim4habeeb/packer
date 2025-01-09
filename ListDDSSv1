@@ -12,3 +12,47 @@ az disk list --query "[?timeCreated<'$(date -d '30 days ago' --utc +%Y-%m-%dT%H:
 
 az disk list --query "[?timeCreated<'$(date -d '30 days ago' --utc +%Y-%m-%dT%H:%M:%SZ')'].{Name:name, Created:timeCreated}" --out table
 az disk list --query "[?timeCreated<'$(date -u -d '30 days ago' +'%Y-%m-%dT%H:%M:%SZ')'].{Name:name, Created:timeCreated}" --out table
+
+pipeline {
+    agent any
+    parameters {
+        string(name: 'jenkinsRG', defaultValue: '', description: 'Resource Group Name')
+        string(name: 'jenkinsType', defaultValue: '', description: 'Type of Jenkins Resource')
+    }
+    environment {
+        ddname = "disk_list.txt"
+        ssname = "snapshot_list.txt"
+        ddssname = "resources.csv"
+    }
+    stages {
+        stage('List Disks and Snapshots') {
+            steps {
+                script {
+                    echo "Listing Managed Disks and Snapshots in Resource Group: ${params.jenkinsRG}"
+                    sh """
+                    az disk list -g ${params.jenkinsRG} --query "[].{Name:name,LastModified:timeCreated}" -o tsv > "${ddname}"
+                    az snapshot list -g ${params.jenkinsRG} --query "[].{Name:name,LastModified:timeCreated}" -o tsv > "${ssname}"
+                    """
+                }
+            }
+        }
+        stage('Create CSV File') {
+            steps {
+                script {
+                    echo "Creating CSV file with resources and last modified date"
+                    sh """
+                    echo "JenkinsRG,ResourceType,ResourceName,LastModifiedDate" > ${ddssname}
+                    awk -v rg=${params.jenkinsRG} '{print rg",ManagedDisk,"$1","$2}' ${ddname} >> ${ddssname}
+                    awk -v rg=${params.jenkinsRG} '{print rg",snapshot,"$1","$2}' ${ssname} >> ${ddssname}
+                    """
+                }
+            }
+        }
+    }
+    post {
+        always {
+            echo "Pipeline execution complete. Check the generated CSV: ${ddssname}"
+            archiveArtifacts artifacts: "${ddssname}", allowEmptyArchive: true
+        }
+    }
+}
