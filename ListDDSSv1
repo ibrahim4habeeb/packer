@@ -6,3 +6,5 @@ if [ -f "${dd_name}" ]; then
 else
     disks=()
 fi
+
+az disk list --query "[?timeCreated<'$(date -d '30 days ago' --utc +%Y-%m-%dT%H:%M:%SZ')'].{Name:name, Created:timeCreated}" --out table
