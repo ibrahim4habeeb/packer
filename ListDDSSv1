@@ -254,3 +254,24 @@ az disk list -g rgname --query '[].{name:name, LastModified: `if`(LastOwnershipU
 
 az disk list -g rgname --query '[].{name:name, LastOwnershipUpdateTime:LastOwnershipUpdateTime, timeCreated:timeCreated}' -o json | \
 jq -r '.[] | {name: .name, LastModified: (.LastOwnershipUpdateTime // .timeCreated)}'
+
+
+
+
+
+pipeline {
+    agent any
+    stages {
+        stage('Disk List') {
+            steps {
+                script {
+                    // Use a Groovy string and escape backslashes properly for Groovy
+                    sh '''#!/bin/bash
+                        az disk list -g rgname --query '[].{name:name, LastOwnershipUpdateTime:LastOwnershipUpdateTime, timeCreated:timeCreated}' -o json | \\
+                        jq -r '.[] | {name: .name, LastModified: (.LastOwnershipUpdateTime // .timeCreated)}' > ddnames.txt
+                    '''
+                }
+            }
+        }
+    }
+}
