@@ -334,3 +334,38 @@ az disk list -g rgname --query '[].{name:name, LastOwnershipUpdateTime:LastOwner
 
 
 
+pipeline {
+    agent any
+    stages {
+        stage('Generate Disk and Snapshot Info') {
+            steps {
+                script {
+                    sh '''#!/bin/bash
+# Function to convert ISO 8601 date to DD-MM-YYYY format
+convert_date() {
+    date -d "$1" '+%d-%m-%Y'
+}
+
+# Fetch disk information and format dates
+az disk list -g rgname \
+    --query '[].{name:name, LastModified: (LastOwnershipUpdateTime // timeCreated)}' -o tsv \
+    | while IFS=$'\t' read -r name date; do
+        formatted_date=$(convert_date "$date")
+        echo "$name $formatted_date" >> ddnames.txt
+    done
+
+# Fetch snapshot information and format dates
+az snapshot list -g rgname \
+    --query '[].{name:name, LastModified: (LastOwnershipUpdateTime // timeCreated)}' -o tsv \
+    | while IFS=$'\t' read -r name date; do
+        formatted_date=$(convert_date "$date")
+        echo "$name $formatted_date" >> ssnames.txt
+    done
+                    '''
+                }
+            }
+        }
+    }
+}
+
+
