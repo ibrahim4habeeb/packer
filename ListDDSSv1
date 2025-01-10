@@ -275,3 +275,31 @@ pipeline {
         }
     }
 }
+
+
+
+
+
+
+az disk list -g rgname --query '[].{name:name, LastOwnershipUpdateTime:LastOwnershipUpdateTime, timeCreated:timeCreated}' -o json
+
+
+az disk list -g rgname --query '[].{name:name, LastOwnershipUpdateTime:LastOwnershipUpdateTime, timeCreated:timeCreated}' -o json | \
+jq -r '.[] | {name: .name, LastModified: (.LastOwnershipUpdateTime // .timeCreated)}' > ddnames.txt
+
+
+pipeline {
+    agent any
+    stages {
+        stage('Disk List') {
+            steps {
+                script {
+                    sh '''#!/bin/bash
+                        az disk list -g rgname --query '[].{name:name, LastOwnershipUpdateTime:LastOwnershipUpdateTime, timeCreated:timeCreated}' -o json | \
+                        jq -r '.[] | {name: .name, LastModified: (.LastOwnershipUpdateTime // .timeCreated)}' > ddnames.txt
+                    '''
+                }
+            }
+        }
+    }
+}
