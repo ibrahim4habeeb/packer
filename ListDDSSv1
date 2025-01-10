@@ -369,3 +369,42 @@ az snapshot list -g rgname \
 }
 
 
+
+
+
+using json and jq
+
+pipeline {
+    agent any
+    stages {
+        stage('Generate Disk and Snapshot Info') {
+            steps {
+                script {
+                    sh '''#!/bin/bash
+# Function to format date to DD-MM-YYYY
+format_date() {
+    jq -r '. | .name + " " + (.LastModified | sub("T.*$"; "") | split("-") | .[2] + "-" + .[1] + "-" + .[0])'
+}
+
+# Fetch and process disk information
+az disk list -g rgname \
+    --query '[].{name:name, LastModified: (LastOwnershipUpdateTime // timeCreated)}' -o json \
+    | jq -c '.[]' \
+    | while read -r entry; do
+        echo "$entry" | format_date >> ddnames.txt
+    done
+
+# Fetch and process snapshot information
+az snapshot list -g rgname \
+    --query '[].{name:name, LastModified: (LastOwnershipUpdateTime // timeCreated)}' -o json \
+    | jq -c '.[]' \
+    | while read -r entry; do
+        echo "$entry" | format_date >> ssnames.txt
+    done
+                    '''
+                }
+            }
+        }
+    }
+}
+
