@@ -313,3 +313,24 @@ az disk list -g rgname --query '[].{name:name, LastOwnershipUpdateTime:LastOwner
 
 
 az disk list -g rgname --query '[].{name:name, LastOwnershipUpdateTime:LastOwnershipUpdateTime, timeCreated:timeCreated}' -o json | jq -r '.[] | "\(.name) \((.LastOwnershipUpdateTime // .timeCreated) | strftime(\"%d-%m-%Y\"))"' > ddnames.txt
+
+
+alternate fix
+
+
+sh '''#!/bin/bash
+az disk list -g rgname --query '[].{name:name, LastOwnershipUpdateTime:LastOwnershipUpdateTime, timeCreated:timeCreated}' -o json | jq -r '.[] | "\(.name) \((.LastOwnershipUpdateTime // .timeCreated | strftime("%d-%m-%Y")))"' > ddnames.txt
+'''
+
+sh '''#!/bin/bash
+az disk list -g rgname --query '[].{name:name, LastOwnershipUpdateTime:LastOwnershipUpdateTime, timeCreated:timeCreated}' -o json | jq -r '.[] | .name + " " + ((.LastOwnershipUpdateTime // .timeCreated | strftime("%d-%m-%Y")))' > ddnames.txt
+'''
+
+sh '''#!/bin/bash
+az disk list -g rgname --query '[].{name:name, LastOwnershipUpdateTime:LastOwnershipUpdateTime, timeCreated:timeCreated}' -o json | jq -r '.[] | "\(.name) \((.LastOwnershipUpdateTime // .timeCreated | strftime(\\"%d-%m-%Y\\")))"' > ddnames.txt
+'''
+az disk list -g rgname --query '[].{name:name, LastOwnershipUpdateTime:LastOwnershipUpdateTime, timeCreated:timeCreated}' -o json | jq -r '.[] | "\(.name) \((.LastOwnershipUpdateTime // .timeCreated | strftime("%d-%m-%Y")))"'
+
+
+
+
