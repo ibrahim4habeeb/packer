@@ -245,3 +245,6 @@ pipeline {
 
 
 az disk list -g rgname --query '[].{name:name, LastModified: (LastOwnershipUpdateTime != `null` && LastOwnershipUpdateTime != ``) ? LastOwnershipUpdateTime : timeCreated}' -o tsv
+
+
+az disk list -g rgname --query '[].{name:name, LastModified: `if`(LastOwnershipUpdateTime, LastOwnershipUpdateTime, timeCreated)}' -o tsv
