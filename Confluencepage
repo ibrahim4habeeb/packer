@@ -260,3 +260,144 @@ By following this process, we ensure efficient management of Azure resources, si
 
 Let me know if you'd like any refinements!
 
+==========
+Here’s a simplified structure for your Confluence page with clear headings and subheadings for ease of understanding:
+
+
+---
+
+Azure Resource Cleanup and Cost Optimization Process
+
+1. Overview
+
+What is this process about?
+
+Why are we doing this?
+
+
+2. Key Objectives
+
+Optimize Azure Costs
+
+Remove Unused Resources
+
+Ensure Reliable Backups
+
+
+3. Resources We Are Managing
+
+Jenkins Artifacts Jobs
+
+Azure Data Disks
+
+Azure Snapshots
+
+
+4. Why is User Confirmation Needed?
+
+To Verify Ownership
+
+To Avoid Accidental Deletion
+
+To Collaborate in Cost Optimization
+
+
+5. How the Process Works
+
+5.1 Monthly Reporting
+
+Jenkins generates reports:
+
+Unused Jenkins Artifacts
+
+Azure Data Disks and Snapshots
+
+
+Reports are shared in an Excel file (listexcelreport).
+
+
+5.2 User Actions
+
+Review the Excel report.
+
+Confirm unused resources by marking them.
+
+Submit the report back.
+
+
+5.3 Resource Backup and Deletion
+
+Resources marked as unused are backed up:
+
+Artifacts Jobs: Stored for 30 days in Azure Storage.
+
+Data Disks and Snapshots: Copied as a backup before deletion.
+
+
+Unused resources are deleted using Jenkins pipelines.
+
+
+6. Step-by-Step Guide for Users
+
+6.1 Reviewing Reports
+
+Check your email or designated location for the Excel file.
+
+Open the file to review the listed resources.
+
+
+6.2 Confirming Unused Resources
+
+Mark resources as unused in the Excel file.
+
+Save and submit your response.
+
+
+6.3 What Happens Next
+
+Confirmed unused resources will be backed up and deleted.
+
+Backups will be retained for 30 days as a safety measure.
+
+
+7. Jenkins Pipelines Used
+
+Jfile-list-artifacts-jobs: Lists unused Jenkins artifacts.
+
+Jfile-list-ss-dd: Lists Azure data disks and snapshots.
+
+Jfile-delete-artifacts-jobs: Deletes unused artifacts after confirmation.
+
+Jfile-delete-ss-dd: Deletes unused data disks and snapshots after confirmation.
+
+
+8. Benefits of This Process
+
+Save Azure costs by removing unused resources.
+
+Maintain a clean and efficient Azure environment.
+
+Ensure no critical data is accidentally deleted.
+
+
+9. Frequently Asked Questions
+
+What if I’m unsure about a resource?
+
+How are backups managed?
+
+Who to contact for assistance?
+
+
+10. Contact Information
+
+DevOps Support Team: [Email/Slack/Phone]
+
+Escalation Point: [Contact details]
+
+
+
+---
+
+This structure ensures that the page is intuitive and provides all necessary details in a clear, user-friendly format.
+
