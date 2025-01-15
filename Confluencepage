@@ -1,0 +1,262 @@
+I am azure cloud Dev ops engineer 
+To maintain standard and save azure cost 
+We are taking jenkins job as saved in artifacts container in azure storage account
+We are maintaining azure data disk and snapshot also
+Now I want to create the confluence page such that I want first list all and prepare excel report excal name listexcalreport share the report to users and get the conformation 
+Which artifacts jenkins jobs are not used or unused
+Similarly get the conformation from the user which azure data disk  which snapshot is unused and to be deleted from the user
+This has to be done monthly 
+
+For list I have created jenkins file means jenkins pipeline job
+
+Below are the files I have created
+
+Jfile-list-artifacts-jobs : This file gives the compared jobs from jenkins as csv
+
+Jfile-list-ss-dd :
+This file gives the list of azure data disk and snapshot at azure resource group level as csv
+
+Jfile-delete-artifacts-jobs :
+This file unused artifacsts jobs after conformation from user in excal delete artifacts jobs  and before delete it will copy which artifacts job to be deleted as backup for 30 days and after 30 days it will deleted automatically using life cycle managed 
+
+Jfile-delete-ss-dd :
+This file delete unused snapshot and data disk after conformation from user in Excel and it will take the copy or backup before delete 
+
+So I want to create best confluence page with below details
+
+Why we are listening the artifacts jobs, snapshot and data disk.
+Why user needs to confirm unused artifacts jobs, snapshot and data disk
+How to confirm the unused artifacts jobs, snapshot and data disk
+
+By this data I want to create best confluence page so that everyone could understand what we are doing exactly ?
+
+
+
+========
+
+Here’s a detailed structure for your Confluence page that clearly outlines your process, objectives, and benefits to ensure team members understand the initiative:
+
+
+---
+
+Azure Cost Optimization and Artifact Management
+
+Introduction
+
+As part of our cost optimization and resource management strategy in Azure, we are standardizing processes to identify and manage unused Jenkins artifacts, Azure data disks, and snapshots. By regularly auditing and removing unused resources, we aim to reduce Azure costs while maintaining a reliable backup and lifecycle strategy.
+
+
+---
+
+Objectives
+
+1. List and identify unused Jenkins jobs, Azure data disks, and snapshots.
+
+
+2. Engage with users to confirm unused resources.
+
+
+3. Safely remove unused resources post-confirmation while ensuring a backup is retained for 30 days.
+
+
+
+
+---
+
+Why Are We Listing Artifacts, Snapshots, and Data Disks?
+
+Cost Optimization: Unused resources contribute significantly to unnecessary costs in Azure.
+
+Resource Management: Ensuring our Azure environment is free from redundant artifacts and snapshots improves efficiency and maintains clarity in resource tracking.
+
+Compliance and Accountability: By documenting and seeking user confirmation, we establish a transparent process to manage and remove resources.
+
+
+
+---
+
+Why Do Users Need to Confirm Unused Artifacts, Snapshots, and Data Disks?
+
+Ownership: Users are the best judges of whether a resource is still required for ongoing or future projects.
+
+Accuracy: Prevent accidental deletion of active or required resources.
+
+Collaboration: Encouraging users to actively participate ensures collective accountability in managing Azure costs and resources.
+
+
+
+---
+
+How to Confirm Unused Artifacts, Snapshots, and Data Disks?
+
+1. Monthly Reports:
+
+Jenkins jobs generate reports listing resources for user review:
+
+Artifacts: Jfile-list-artifacts-jobs
+
+Azure Data Disks and Snapshots: Jfile-list-ss-dd
+
+
+These reports are compiled into an Excel file, listexcelreport, for user review.
+
+
+
+2. User Actions:
+
+Review the Excel file shared with you.
+
+Mark the resources you believe are unused or no longer required.
+
+Submit your confirmation through the specified channel or workflow.
+
+
+
+3. Validation and Deletion:
+
+Post-confirmation, unused resources will be:
+
+Backed up:
+
+Artifacts jobs: Retained for 30 days in a lifecycle-managed Azure storage container.
+
+Data disks and snapshots: Safely copied for backup before deletion.
+
+
+Deleted:
+
+Handled through Jenkins pipeline jobs:
+
+Artifacts: Jfile-delete-artifacts-jobs
+
+Snapshots and Data Disks: Jfile-delete-ss-dd
+
+
+
+
+
+
+
+
+---
+
+Jenkins Pipelines Overview
+
+1. List Resources
+
+Jfile-list-artifacts-jobs: Generates a CSV report comparing Jenkins jobs and identifying unused artifacts.
+
+Jfile-list-ss-dd: Generates a CSV report listing Azure data disks and snapshots at the resource group level.
+
+
+2. Delete Resources
+
+Jfile-delete-artifacts-jobs:
+
+Deletes unused artifacts post-confirmation.
+
+Takes a backup of resources to an Azure storage container with a 30-day lifecycle policy.
+
+
+Jfile-delete-ss-dd:
+
+Deletes unused Azure data disks and snapshots post-confirmation.
+
+Ensures a backup is created before deletion.
+
+
+
+
+---
+
+Process Workflow
+
+1. Generate Reports:
+
+Jenkins pipeline jobs run monthly to produce CSV reports of unused resources.
+
+Reports are consolidated into an Excel file and shared with relevant users.
+
+
+
+2. User Confirmation:
+
+Users review the shared Excel file.
+
+Confirm unused resources by marking them in the file.
+
+
+
+3. Resource Backup and Deletion:
+
+Jenkins pipeline jobs execute the deletion process for confirmed unused resources.
+
+Resources are backed up for 30 days to ensure a fail-safe mechanism.
+
+
+
+
+
+---
+
+Benefits of This Approach
+
+1. Cost Savings:
+
+Reduce unnecessary Azure costs by eliminating unused resources.
+
+
+
+2. Transparency:
+
+A structured approach involving user confirmation ensures transparency and accountability.
+
+
+
+3. Reliability:
+
+Backups and lifecycle management provide a safeguard against accidental deletions.
+
+
+
+4. Improved Efficiency:
+
+Keeps the Azure environment organized and free from redundant resources.
+
+
+
+
+
+---
+
+Action Items for Users
+
+1. Review Monthly Reports:
+
+Access the shared Excel file (listexcelreport) in your inbox or the designated location.
+
+
+
+2. Mark Unused Resources:
+
+Clearly indicate which resources are no longer required.
+
+
+
+3. Submit Confirmation:
+
+Send the updated file or your response as per the defined workflow.
+
+
+
+
+
+---
+
+By following this process, we ensure efficient management of Azure resources, significant cost savings, and enhanced collaboration across teams. If you have any questions or need clarification, feel free to reach out to the DevOps team.
+
+
+---
+
+Let me know if you'd like any refinements!
+
