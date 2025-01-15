@@ -34,3 +34,42 @@ az snapshot list -g rgname \
         }
     }
 }
+
+
+====
+pipeline {
+    agent any
+    stages {
+        stage('Generate Disk and Snapshot Info') {
+            steps {
+                script {
+                    sh '''#!/bin/bash
+# Get the date 30 days ago in ISO format
+thirty_days_ago=$(date -I -d '30 days ago')
+
+# Function to format date to DD-MM-YYYY
+format_date() {
+    jq -r '. | .name + " " + (.timeCreated | sub("T.*$"; "") | split("-") | .[2] + "-" + .[1] + "-" + .[0])'
+}
+
+# Fetch and process disks created more than 30 days ago
+az disk list -g rgname \
+    --query "[?timeCreated <= \`$thirty_days_ago\`].{name:name, timeCreated:timeCreated}" -o json \
+    | jq -c '.[]' \
+    | while read -r entry; do
+        echo "$entry" | format_date >> ddnames.txt
+    done
+
+# Fetch and process snapshots created more than 30 days ago
+az snapshot list -g rgname \
+    --query "[?timeCreated <= \`$thirty_days_ago\`].{name:name, timeCreated:timeCreated}" -o json \
+    | jq -c '.[]' \
+    | while read -r entry; do
+        echo "$entry" | format_date >> ssnames.txt
+    done
+                    '''
+                }
+            }
+        }
+    }
+}
