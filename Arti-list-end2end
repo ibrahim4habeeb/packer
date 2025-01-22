@@ -1,0 +1,40 @@
+pipeline {
+    agent {
+        label 'azure-agent' // Ensure the correct label for your Azure agent
+    }
+
+    environment {
+        // Replace with your Azure Storage details
+        AZURE_STORAGE_CREDENTIAL_ID = 'your-azure-credential-id' // Jenkins credentials ID
+        AZURE_CONTAINER_NAME = 'your-container-name'
+        AZURE_BLOB_NAME = 'test.csv'
+    }
+
+    stages {
+        stage('Create CSV File') {
+            steps {
+                script {
+                    // Create a CSV file in the agent's workspace
+                    writeFile file: 'test.csv', text: 'Column1,Column2,Column3\nValue1,Value2,Value3'
+                }
+                echo "CSV file created successfully"
+            }
+        }
+
+        stage('Upload CSV to Azure Blob Storage') {
+            steps {
+                azureUpload storageCredentialId: "${AZURE_STORAGE_CREDENTIAL_ID}",
+                            containerName: "${AZURE_CONTAINER_NAME}",
+                            filesPath: 'test.csv',
+                            blobName: "${AZURE_BLOB_NAME}",
+                            doNotWaitForPreviousBuild: false
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "Pipeline completed. Cleaning up if necessary."
+        }
+    }
+}
