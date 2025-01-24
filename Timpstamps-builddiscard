@@ -1,0 +1,19 @@
+pipeline {
+    agent any
+    options {
+        timestamps() // Enables timestamps in console output
+        buildDiscarder(logRotator(
+            daysToKeepStr: '7',     // Retain builds for 7 days
+            numToKeepStr: '10',     // Keep the last 10 builds
+            artifactDaysToKeepStr: '3', // Retain artifacts for 3 days
+            artifactNumToKeepStr: '5'  // Keep artifacts from the last 5 builds
+        ))
+    }
+    stages {
+        stage('Example Stage') {
+            steps {
+                echo 'This is an example pipeline with timestamps and build discarding policy.'
+            }
+        }
+    }
+}
