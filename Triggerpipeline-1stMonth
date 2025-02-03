@@ -1,0 +1,23 @@
+pipeline {
+    agent any
+    options {
+        timestamps() // Enables timestamps in console output
+        buildDiscarder(logRotator(numToKeepStr: '10')) // Keep only the last 10 builds
+    }
+    triggers {
+        cron('30 11 1 * *') // Runs at 11:30 AM UTC (4:30 PM IST) on the 1st of every month
+    }
+    stages {
+        stage('Scheduled Execution') {
+            steps {
+                echo 'This pipeline runs automatically on the first day of every month at 4:30 PM IST.'
+            }
+        }
+        stage('Your Task') {
+            steps {
+                echo 'Execute your actual job tasks here.'
+                // Add your build, deployment, or testing steps here
+            }
+        }
+    }
+}
