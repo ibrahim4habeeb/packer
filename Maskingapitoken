@@ -1,0 +1,5 @@
+def jobsResponse = sh(script: """
+    set +x
+    curl -s -k -u '$apiUser:$apiToken' '${jobsApiUrl}'
+    set -x
+""", returnStdout: true).trim()
