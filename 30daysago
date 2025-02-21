@@ -73,3 +73,51 @@ az snapshot list -g rgname \
         }
     }
 }
+
+days as variable parameter
+pipeline {
+    agent any
+    parameters {
+        string(name: 'DAYS_AGO', defaultValue: '30', description: 'Enter the number of days ago (e.g., 7, 30, 60)')
+    }
+    stages {
+        stage('Generate Disk and Snapshot Info') {
+            steps {
+                script {
+                    sh '''
+                    #!/bin/bash
+                    # Get the number of days from Jenkins parameter
+                    DAYS_AGO=${DAYS_AGO}
+
+                    # Get the date X days ago in ISO format
+                    target_date=$(date -I -d "$DAYS_AGO days ago")
+
+                    # Function to format date to DD-MM-YYYY
+                    format_date() {
+                        jq -r '. | .name + " " + (.timeCreated | sub("T.*$"; "") | split("-") | .[2] + "-" + .[1] + "-" + .[0])'
+                    }
+
+                    echo "Fetching disks and snapshots older than $DAYS_AGO days (before $target_date)..."
+
+                    # Fetch and process disks created more than X days ago
+                    az disk list -g rgname \
+                        --query "[?timeCreated <= '$target_date'].{name:name, timeCreated:timeCreated}" -o json \
+                        | jq -c '.[]' \
+                        | while read -r entry; do
+                            echo "$entry" | format_date >> ddnames.txt
+                        done
+
+                    # Fetch and process snapshots created more than X days ago
+                    az snapshot list -g rgname \
+                        --query "[?timeCreated <= '$target_date'].{name:name, timeCreated:timeCreated}" -o json \
+                        | jq -c '.[]' \
+                        | while read -r entry; do
+                            echo "$entry" | format_date >> ssnames.txt
+                        done
+                    '''
+                }
+            }
+        }
+    }
+}
+
