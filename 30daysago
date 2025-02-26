@@ -121,3 +121,64 @@ pipeline {
     }
 }
 
+list and delete automatically 
+pipeline {
+    agent any
+    parameters {
+        string(name: 'DAYS_AGO', defaultValue: '30', description: 'Enter the number of days ago (e.g., 7, 30, 60)')
+        string(name: 'RESOURCE_GROUP', defaultValue: 'rgname', description: 'Azure Resource Group containing snapshots')
+    }
+    environment {
+        SNAPSHOT_FILE = 'snapshots_to_delete.txt'
+    }
+    stages {
+        stage('List Old Snapshots') {
+            steps {
+                script {
+                    sh '''
+                    #!/bin/bash
+                    set -e
+                    
+                    # Get the number of days from Jenkins parameter
+                    DAYS_AGO=${DAYS_AGO}
+
+                    # Get the date X days ago in ISO format
+                    TARGET_DATE=$(date -I -d "$DAYS_AGO days ago")
+
+                    echo "Fetching snapshots older than $DAYS_AGO days (before $TARGET_DATE)..."
+
+                    # Fetch and process snapshots created more than X days ago
+                    az snapshot list -g ${RESOURCE_GROUP} \
+                        --query "[?timeCreated <= '$TARGET_DATE'].name" -o tsv > ${SNAPSHOT_FILE}
+
+                    # Display the snapshots found
+                    if [ -s "${SNAPSHOT_FILE}" ]; then
+                        echo "Snapshots to delete:"
+                        cat ${SNAPSHOT_FILE}
+                    else
+                        echo "No snapshots found older than ${DAYS_AGO} days."
+                    fi
+                    '''
+                }
+            }
+        }
+
+        stage('Delete Snapshots') {
+            when {
+                expression { fileExists(env.SNAPSHOT_FILE) && readFile(env.SNAPSHOT_FILE).readLines().findAll { it?.trim() }.size() > 0 }
+            }
+            steps {
+                script {
+                    def snapshotNames = readFile(env.SNAPSHOT_FILE).readLines().findAll { it?.trim() }
+                    snapshotNames.each { snapshotName ->
+                        sh """
+                        #!/bin/bash
+                        echo "Deleting snapshot: ${snapshotName} from resource group: ${RESOURCE_GROUP}"
+                        az snapshot delete --name ${snapshotName} --resource-group ${RESOURCE_GROUP} --yes
+                        """
+                    }
+                }
+            }
+        }
+    }
+}
