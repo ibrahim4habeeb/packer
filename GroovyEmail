@@ -1,0 +1,20 @@
+import hudson.model.*
+import hudson.tasks.Mailer
+
+// Set recipient email
+def recipientEmail = "receiver@example.com"
+
+// Get or create a Jenkins user
+def user = User.get("alert-bot", true)  // This doesn't need to be a real login user
+
+// Assign email address to the user
+user.addProperty(new Mailer.UserProperty(recipientEmail))
+user.save()
+
+// Compose and send email
+def subject = "Jenkins Alert"
+def body = "A job failed or some important event happened."
+
+Mailer.descriptor().send(recipientEmail, subject, body)
+
+println "Email sent to ${recipientEmail}"
