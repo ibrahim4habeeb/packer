@@ -1,0 +1,3 @@
+sum by (job, jenkins_job) (
+  increase(default_jenkins_builds_failed_build_count_total{jenkins_job=~"repo_starch.*"}[10d])
+)
